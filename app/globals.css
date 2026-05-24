@@ -1,26 +1,192 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-destructive: var(--destructive);
+  --color-ring: var(--ring);
+  --color-rose-light: #f43f5e;
+  --color-rose-dark: #fb7185;
+  --color-gold: #d4a853;
+  --color-gold-light: #f0d68a;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --radius: 0.75rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: #fffbf5;
+  --foreground: #1a1a2e;
+  --primary: #e85d75;
+  --primary-foreground: #ffffff;
+  --secondary: #fdf0f0;
+  --secondary-foreground: #4a1942;
+  --muted: #f5f0eb;
+  --muted-foreground: #7c7c8a;
+  --accent: #f4a3b7;
+  --accent-foreground: #4a1942;
+  --border: #f0e6d6;
+  --card: #ffffff;
+  --card-foreground: #1a1a2e;
+  --destructive: #ef4444;
+  --ring: #e85d75;
+}
+
+.dark {
+  --background: #121212;
+  --foreground: #f5f0eb;
+  --primary: #d4a853;
+  --primary-foreground: #121212;
+  --secondary: #1e1e2e;
+  --secondary-foreground: #f0d68a;
+  --muted: #1a1a2a;
+  --muted-foreground: #a0a0b0;
+  --accent: #d4a853;
+  --accent-foreground: #121212;
+  --border: #2a2a3e;
+  --card: #1a1a2a;
+  --card-foreground: #f5f0eb;
+  --destructive: #ef4444;
+  --ring: #d4a853;
+}
+
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Smooth transitions for theme changes */
+html {
+  transition: color-scheme 0.3s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* ── Animations ─────────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes water-fill {
+  from { stroke-dashoffset: 502.65; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes bounce-in {
+  0% { opacity: 0; transform: scale(0.9); }
+  50% { transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(232, 93, 117, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(232, 93, 117, 0.4); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(60px) rotate(180deg); opacity: 0; }
+}
+
+@utility animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@utility animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+@utility animate-slide-up {
+  animation: slide-up 0.5s ease-out;
+}
+
+@utility animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+@utility animate-bounce-in {
+  animation: bounce-in 0.4s ease-out;
+}
+
+@utility animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+@utility animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+/* Water cup animation */
+.water-progress {
+  transition: stroke-dashoffset 1s ease-in-out;
 }

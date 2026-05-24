@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  role      String   // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+
+  @@map("chat_messages")
+}
+
+model MealLog {
+  id          String   @id @default(cuid())
+  mealName    String
+  ingredients String   // Comma-separated or JSON string
+  isOutside   Boolean  @default(false)
+  cost        Float?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@map("meal_logs")
+}
+
+model UserMood {
+  id        String   @id @default(cuid())
+  mood      String   // "happy" | "stressed" | "tired" | "productive"
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@map("user_moods")
+}
