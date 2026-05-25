@@ -1,8 +1,12 @@
-import { google } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
 import { streamText, type ModelMessage } from "ai";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { MealLog } from "@prisma/client";
+
+const groq = createGroq({
+  apiKey: process.env.GROQ_API_KEY || "",
+});
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -131,7 +135,7 @@ FORMAT YOUR RESPONSES:
     }
 
     const result = streamText({
-      model: google("gemini-1.5-flash"),
+      model: groq("llama-3.3-70b-versatile"),
       system: systemPrompt,
       messages,
       onFinish: async ({ text }) => {

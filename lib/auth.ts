@@ -92,13 +92,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
           } catch (error) {
             console.error("Failed to sync fallback user to DB:", error);
-            // Return with static ID as last resort
-            return {
-              id: fallbackUser.email === myEmail ? "1" : "2",
-              name: fallbackUser.name,
-              email: fallbackUser.email,
-            };
           }
+
+          // Return with static ID if DB is unavailable or upsert failed
+          // This ensures login works even when Prisma/Database is down
+          return {
+            id: fallbackUser.email === myEmail ? "1" : "2",
+            name: fallbackUser.name,
+            email: fallbackUser.email,
+          };
         }
 
         return null;
