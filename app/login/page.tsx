@@ -58,7 +58,7 @@ function LoginForm() {
             <Heart className="h-8 w-8 sm:h-10 sm:w-10 text-white" fill="white" />
           </div>
           <CardTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-rose-500 to-amber-500 dark:from-amber-400 dark:to-yellow-400 bg-clip-text text-transparent">
-            Suar's Kitchen
+            Suar's Care
           </CardTitle>
           <CardDescription className="text-base mt-2 text-muted-foreground">
             <span className="flex items-center justify-center gap-2">

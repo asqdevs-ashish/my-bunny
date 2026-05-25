@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChefHat, ExternalLink, MessageCircle, CirclePlay } from "lucide-react";
 import Link from "next/link";
+import { useMood } from "@/lib/use-mood";
 
 interface RecipeSuggestion {
   title: string;
@@ -126,48 +126,23 @@ const defaultRecipes = [
 ];
 
 export function MoodRecipes() {
-  const [mounted, setMounted] = useState(false);
-  const [currentMood, setCurrentMood] = useState<string | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-    try {
-      const saved = localStorage.getItem("chef-cupid-mood");
-      if (saved) {
-        const data = JSON.parse(saved);
-        const today = new Date().toDateString();
-        if (data.date === today) {
-          setCurrentMood(data.mood);
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    const handleMoodChange = (e: CustomEvent) => {
-      setCurrentMood(e.detail.mood);
-    };
-    window.addEventListener("mood-change", handleMoodChange as EventListener);
-    return () =>
-      window.removeEventListener(
-        "mood-change",
-        handleMoodChange as EventListener
-      );
-  }, []);
+  const { currentMood, mounted } = useMood();
 
   if (!mounted) return null;
 
-  const recipes = currentMood && moodRecipes[currentMood]
-    ? moodRecipes[currentMood]
+  const moodId = currentMood?.id ?? null;
+
+  const recipes = moodId && moodRecipes[moodId]
+    ? moodRecipes[moodId]
     : defaultRecipes;
 
-  const moodLabel = currentMood
+  const moodLabel = moodId
     ? {
         happy: "Happy 😊",
         stressed: "Stressed 😰",
         tired: "Tired 😴",
         productive: "Productive 💪",
-      }[currentMood]
+      }[moodId]
     : null;
 
   return (

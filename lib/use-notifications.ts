@@ -40,10 +40,100 @@ const WATER_NOTIFICATIONS = [
   "Hydration queen! Time for a glass 💦",
 ];
 
+// ─── Web Push Subscription ──────────────────────────────────
+/**
+ * Register the service worker and subscribe to push notifications.
+ * Saves the subscription to the server so we can send push from the backend.
+ */
+async function registerWebPush(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    console.warn("Push notifications not supported in this browser");
+    return false;
+  }
+
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!publicKey) {
+    console.warn("Missing NEXT_PUBLIC_VAPID_PUBLIC_KEY. Push not registered.");
+    return false;
+  }
+
+  try {
+    // Register service worker if not already
+    const registration = await navigator.serviceWorker.register("/sw.js");
+
+    // Subscribe to push
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+    });
+
+    // Save subscription to server
+    const res = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(subscription),
+    });
+
+    return res.ok;
+  } catch (error) {
+    console.error("Failed to register web push:", error);
+    return false;
+  }
+}
+
+/**
+ * Unsubscribe from push notifications and remove from server.
+ */
+async function unregisterWebPush(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
+
+    // Remove from server
+    await fetch("/api/push/unsubscribe", { method: "POST" });
+    return true;
+  } catch (error) {
+    console.error("Failed to unregister web push:", error);
+    return false;
+  }
+}
+
+/**
+ * Convert a Base64 URL-encoded string to a Uint8Array.
+ * Required by the Push API for the applicationServerKey.
+ */
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HOOK
+// ═══════════════════════════════════════════════════════════════
+
 export function useNotifications() {
   const [permission, setPermission] = useState<NotificationPermission | "loading">("loading");
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFERENCES);
   const [swRegistered, setSwRegistered] = useState(false);
+  const [webPushSubscribed, setWebPushSubscribed] = useState(false);
   const intervalsRef = useRef<ReturnType<typeof setInterval>[]>([]);
 
   // Load preferences from localStorage
@@ -81,8 +171,16 @@ export function useNotifications() {
   // Request notification permission
   const requestPermission = useCallback(async () => {
     if (!("Notification" in window)) return false;
+
     const result = await Notification.requestPermission();
     setPermission(result);
+
+    if (result === "granted") {
+      // Also register for web push (background notifications)
+      const pushOk = await registerWebPush();
+      setWebPushSubscribed(pushOk);
+    }
+
     return result === "granted";
   }, []);
 
@@ -92,8 +190,14 @@ export function useNotifications() {
       const newPrefs = { ...preferences, [type]: value };
       setPreferences(newPrefs);
       localStorage.setItem(PREFS_KEY, JSON.stringify(newPrefs));
+
+      // If user disables all notifications, unsubscribe from web push
+      const anyEnabled = Object.values(newPrefs).some(Boolean);
+      if (!anyEnabled && webPushSubscribed) {
+        unregisterWebPush().then(() => setWebPushSubscribed(false));
+      }
     },
-    [preferences]
+    [preferences, webPushSubscribed]
   );
 
   // Show a notification
@@ -107,8 +211,8 @@ export function useNotifications() {
           const reg = await navigator.serviceWorker.ready;
           await reg.showNotification(title, {
             body,
-            icon: "/icon-192.svg",
-            badge: "/icon-192.svg",
+            icon: "/icon-192.jpeg",
+            badge: "/icon-192.jpeg",
             tag: tag || "chef-cupid",
             // @ts-expect-error vibrate is supported in browsers but not in TS types
             vibrate: [100, 50, 100],
@@ -123,7 +227,7 @@ export function useNotifications() {
       try {
         const notif = new Notification(title, {
           body,
-          icon: "/icon-192.svg",
+          icon: "/icon-192.jpeg",
           tag: tag || "chef-cupid",
           // @ts-expect-error vibrate is supported in browsers but not in TS types
           vibrate: [100, 50, 100],
@@ -249,5 +353,6 @@ export function useNotifications() {
     requestPermission,
     updatePreference,
     showNotification,
+    webPushSubscribed,
   };
 }

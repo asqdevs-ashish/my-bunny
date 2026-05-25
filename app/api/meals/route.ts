@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveOrCreateCurrentUser } from "@/lib/current-user";
 
 export async function GET() {
   const session = await auth();
@@ -9,7 +10,12 @@ export async function GET() {
   }
 
   try {
-    const meals = await prisma.mealLog.findMany({
+    const db = prisma;
+    if (!db) throw new Error("Database not available");
+    const currentUser = await resolveOrCreateCurrentUser(session.user);
+
+    const meals = await db.mealLog.findMany({
+      where: { userId: currentUser.id },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
@@ -35,8 +41,13 @@ export async function POST(req: NextRequest) {
       return new Response("Meal name is required", { status: 400 });
     }
 
-    const meal = await prisma.mealLog.create({
+    const db = prisma;
+    if (!db) throw new Error("Database not available");
+    const currentUser = await resolveOrCreateCurrentUser(session.user);
+
+    const meal = await db.mealLog.create({
       data: {
+        userId: currentUser.id,
         mealName,
         ingredients: ingredients || "",
         isOutside: isOutside || false,

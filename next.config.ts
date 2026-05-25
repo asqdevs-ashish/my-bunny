@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow network access in dev mode
+  allowedDevOrigins: ["10.171.106.163"],
   images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "i.ytimg.com",
+        hostname: "res.cloudinary.com",
       },
       {
         protocol: "https",

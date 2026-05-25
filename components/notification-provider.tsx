@@ -9,6 +9,7 @@ interface NotificationContextType {
   requestPermission: () => Promise<boolean>;
   updatePreference: (type: NotificationType, value: boolean) => void;
   showNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
+  webPushSubscribed: boolean;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);

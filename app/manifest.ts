@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Suar's Kitchen 💕",
-    short_name: "Suar's Kitchen",
+    name: "Suar's Care 💕",
+    short_name: "Suar's Care",
     description:
       "Your personal Suar for Food",
     start_url: "/dashboard",
@@ -13,16 +13,22 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     icons: [
       {
-        src: "/icon-192.svg",
+        src: "/icon-192.jpeg",
         sizes: "192x192",
-        type: "image/svg+xml",
+        type: "image/jpeg",
         purpose: "any",
       },
       {
-        src: "/icon-512.svg",
+        src: "/icon-512.jpeg",
         sizes: "512x512",
-        type: "image/svg+xml",
+        type: "image/jpeg",
         purpose: "any",
+      },
+      {
+        src: "/icon.jpeg",
+        sizes: "192x192",
+        type: "image/jpeg",
+        purpose: "maskable",
       },
     ],
     categories: ["food", "health", "lifestyle"],

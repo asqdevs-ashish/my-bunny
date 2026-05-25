@@ -16,11 +16,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Suar's Kitchen 💕",
+  title: "Suar's Care 💕",
   description:
     "A personalized AI Food, Recipe & Wellness app made with love ❤️",
   openGraph: {
-    title: "Suar's Kitchen 💕",
+    title: "Suar's Care 💕",
     description: "Your Personal Suar & Wellness Companion",
     type: "website",
   },
@@ -47,12 +47,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/icon-192.jpeg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Suar's Kitchen" />
+        <meta name="apple-mobile-web-app-title" content="Suar's Care" />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <SessionProvider>
           <ThemeProvider>
             <div className="flex flex-1 flex-col">

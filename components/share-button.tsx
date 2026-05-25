@@ -33,34 +33,33 @@ export function ShareButton() {
         // API unavailable — continue without meals
       }
 
-      // 2. Read water from localStorage
+      // 2. Fetch water from DB API
       let waterGlasses = 0;
       try {
-        const saved = localStorage.getItem("chef-cupid-water-glasses");
-        if (saved) {
-          const data = JSON.parse(saved);
-          const today = new Date().toDateString();
-          if (data.date === today) {
-            waterGlasses = data.count || 0;
-          }
+        const res = await fetch("/api/water");
+        if (res.ok) {
+          const data = await res.json();
+          waterGlasses = data.count || 0;
         }
       } catch {
-        // ignore
+        // API unavailable — continue without water
       }
 
-      // 3. Read mood from localStorage
+      // 3. Fetch today's mood from DB API
       let mood: string | null = null;
       try {
-        const saved = localStorage.getItem("chef-cupid-mood");
-        if (saved) {
-          const data = JSON.parse(saved);
+        const res = await fetch("/api/mood");
+        if (res.ok) {
+          const data = await res.json();
           const today = new Date().toDateString();
-          if (data.date === today) {
-            mood = data.mood || null;
-          }
+          // Find today's mood from the returned list
+          const todayMood = Array.isArray(data) 
+            ? data.find((m: { createdAt: string }) => new Date(m.createdAt).toDateString() === today)
+            : null;
+          mood = todayMood?.mood || null;
         }
       } catch {
-        // ignore
+        // API unavailable — continue without mood
       }
 
       // 4. Format the overview

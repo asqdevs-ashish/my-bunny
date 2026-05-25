@@ -11,13 +11,18 @@ import { MoodRecipes } from "@/components/mood-recipes";
 import { ShareButton } from "@/components/share-button";
 import { NotificationProvider } from "@/components/notification-provider";
 import { NotificationSettingsWrapper } from "@/components/notification-settings-wrapper";
+import { PartnerOverview } from "@/components/partner-overview";
+import { MemoryScrapbook } from "@/components/memory-scrapbook";
+import { SecretNoteExchange } from "@/components/secret-note-exchange";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
-import { Heart, Sparkles, UtensilsCrossed } from "lucide-react";
+import {
+  Heart,
+  Sparkles,
+  UtensilsCrossed,
+} from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -44,7 +49,7 @@ export default async function DashboardPage() {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">
-                    Kya Re Suar 🥰
+                    Suar 🥰
                   </h1>
                   <p className="mt-1 sm:mt-2 text-xs sm:text-sm md:text-base text-muted-foreground max-w-lg leading-relaxed">
                     Your personal AI chef is ready to help you cook something
@@ -100,16 +105,23 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* Bottom Row - 3 columns on lg */}
-          <div className="animate-slide-up sm:col-span-2 lg:col-span-1" style={{ animationDelay: "0.3s" } as React.CSSProperties}>
-            <WeeklySummary />
+          {/* Partner Overview — Full width card */}
+          <div className="sm:col-span-2 lg:col-span-3 animate-slide-up" style={{ animationDelay: "0.3s" } as React.CSSProperties}>
+            <PartnerOverview />
           </div>
-          <div className="animate-slide-up sm:col-span-2 lg:col-span-1" style={{ animationDelay: "0.35s" } as React.CSSProperties}>
+
+          {/* Bottom Row - 3 columns on lg */}
+          <div className="animate-slide-up sm:col-span-2 lg:col-span-1 space-y-4 sm:space-y-6" style={{ animationDelay: "0.35s" } as React.CSSProperties}>
+            <WeeklySummary />
+            <SecretNoteExchange />
+          </div>
+          <div className="animate-slide-up sm:col-span-2 lg:col-span-1 space-y-4 sm:space-y-6" style={{ animationDelay: "0.4s" } as React.CSSProperties}>
             <NotificationProvider>
               <NotificationSettingsWrapper />
             </NotificationProvider>
+            <MemoryScrapbook />
           </div>
-          <div className="animate-slide-up" style={{ animationDelay: "0.4s" } as React.CSSProperties}>
+          <div className="animate-slide-up" style={{ animationDelay: "0.45s" } as React.CSSProperties}>
             <MoodRecipes />
           </div>
         </div>

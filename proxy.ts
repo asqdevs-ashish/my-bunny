@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const protectedRoutes = ["/dashboard", "/chat"];
+const protectedRoutes = ["/dashboard", "/chat", "/partner-chat"];
 const publicRoutes = ["/login"];
 
 export default async function proxy(req: NextRequest) {

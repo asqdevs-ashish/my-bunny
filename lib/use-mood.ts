@@ -63,23 +63,26 @@ export function useMood() {
   const [selectedMood, setSelectedMoodState] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  // On mount — restore mood if selected within last 12 hours
+  // On mount — restore mood from sessionStorage (per-tab, cleared on close)
+  // This allows mood to sync across page navigations within the same tab
+  // but prevents auto-selection when coming back hours later or in a new tab
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem(MOOD_STORAGE_KEY);
-    if (saved) {
-      try {
+    try {
+      const saved = sessionStorage.getItem(MOOD_STORAGE_KEY);
+      if (saved) {
         const data = JSON.parse(saved);
-        const now = Date.now();
-        const TWELVE_HOURS = 12 * 60 * 60 * 1000;
-        const elapsed = now - (data.timestamp || 0);
-        // Restore only if within 12 hours (also fallback to date check for old saves)
-        if (elapsed < TWELVE_HOURS || data.date === new Date().toDateString()) {
-          setSelectedMoodState(data.mood);
+        // Only restore if within the same session (sessionStorage auto-clears on tab close)
+        if (data.mood && data.timestamp) {
+          const elapsed = Date.now() - data.timestamp;
+          // Restore only if within 30 minutes (covers SPA navigation)
+          if (elapsed < 30 * 60 * 1000) {
+            setSelectedMoodState(data.mood);
+          }
         }
-      } catch {
-        // Ignore parse errors
       }
+    } catch {
+      // Ignore parse errors
     }
   }, []);
 
@@ -106,16 +109,14 @@ export function useMood() {
       setSelectedMoodState(moodId);
 
       if (moodId) {
-        // Save to localStorage (with timestamp for 12-hour expiry)
-        const today = new Date().toDateString();
-        localStorage.setItem(
-          MOOD_STORAGE_KEY,
-          JSON.stringify({
-            timestamp: Date.now(),
-            date: today,
-            mood: moodId,
-          })
-        );
+        // Save to sessionStorage (per-tab, cleared on close) + localStorage (backup)
+        const payload = JSON.stringify({
+          timestamp: Date.now(),
+          date: new Date().toDateString(),
+          mood: moodId,
+        });
+        sessionStorage.setItem(MOOD_STORAGE_KEY, payload);
+        localStorage.setItem(MOOD_STORAGE_KEY, payload);
 
         // Save to DB (fire-and-forget)
         fetch("/api/mood", {

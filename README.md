@@ -1,4 +1,4 @@
-# 👩‍🍳 Suar's Kitchen 💕
+# 👩‍🍳 Suar's Care 💕
 
 A personalized **AI Food, Recipe & Wellness** companion built with ❤️.
 

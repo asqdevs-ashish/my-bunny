@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveOrCreateCurrentUser } from "@/lib/current-user";
 
 export async function GET() {
   const session = await auth();
@@ -9,7 +10,12 @@ export async function GET() {
   }
 
   try {
-    const moods = await prisma.userMood.findMany({
+    const db = prisma;
+    if (!db) throw new Error("Database not available");
+    const currentUser = await resolveOrCreateCurrentUser(session.user);
+
+    const moods = await db.userMood.findMany({
+      where: { userId: currentUser.id },
       orderBy: { createdAt: "desc" },
       take: 30,
     });
@@ -35,8 +41,13 @@ export async function POST(req: NextRequest) {
       return new Response("Invalid mood", { status: 400 });
     }
 
-    const moodEntry = await prisma.userMood.create({
+    const db = prisma;
+    if (!db) throw new Error("Database not available");
+    const currentUser = await resolveOrCreateCurrentUser(session.user);
+
+    const moodEntry = await db.userMood.create({
       data: {
+        userId: currentUser.id,
         mood,
         note: note || null,
       },

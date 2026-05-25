@@ -10,9 +10,11 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
+
+  const userId = session.user.id;
 
   try {
     let messages: ModelMessage[];
@@ -31,35 +33,54 @@ export async function POST(req: Request) {
       );
     }
 
-    // Fetch recent meal logs for context (last 15)
-    const recentMeals: MealLog[] = await prisma.mealLog.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 15,
-    });
+    const db = prisma;
 
-    // Fetch today's mood if any (only as fallback if not passed in request)
-    let todayMood = null;
-    if (!requestMood) {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      todayMood = await prisma.userMood.findFirst({
-        where: {
-          createdAt: { gte: todayStart },
-        },
-        orderBy: { createdAt: "desc" },
-      });
+    // Fetch recent meal logs for context (last 20)
+    let recentMeals: MealLog[] = [];
+    if (db) {
+      try {
+        recentMeals = await db.mealLog.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        });
+      } catch { /* ignore */ }
     }
 
-    // Build meal context string
+    // Fetch today's mood
+    let todayMood = null;
+    if (!requestMood && db) {
+      try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        todayMood = await db.userMood.findFirst({
+          where: {
+            userId,
+            createdAt: { gte: todayStart },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+      } catch { /* ignore */ }
+    }
+
+    // Build meal context with detailed ingredient history
     const mealContext =
       recentMeals.length > 0
         ? recentMeals
-            .map(
-              (m: MealLog) =>
-                `- ${m.mealName} (${m.isOutside ? "Outside" : "Home-cooked"})${m.cost ? ` - ₹${m.cost}` : ""}${m.ingredients ? ` [${m.ingredients}]` : ""}`
-            )
+            .map((m: MealLog) => `- ${m.mealName}: ${m.ingredients || "No ingredients listed"} (${m.isOutside ? "Outside" : "Home"})${m.cost ? ` [₹${m.cost}]` : ""}`)
             .join("\n")
-        : "No recent meals logged yet.";
+        : "No recent meals logged.";
+
+    // Inventory Analysis for AI
+    const allIngredients = recentMeals
+      .filter(m => !m.isOutside)
+      .map(m => m.ingredients)
+      .join(", ")
+      .toLowerCase();
+
+    const inventoryContext = allIngredients 
+      ? `Recent ingredients used (inventory): ${allIngredients}` 
+      : "No inventory history.";
 
     const activeMood = requestMood || todayMood?.mood || null;
     const moodContext = activeMood
@@ -69,41 +90,25 @@ export async function POST(req: Request) {
     const systemPrompt = `Tum Suar ka Kitchen AI ho 💕 — ek caring, witty, aur loving personal AI chef for a very special person.
 
 🚨 **IMPORTANT — LANGUAGE RULES (FOLLOW STRICTLY):**
-
-1. **SPEAK NATURAL HINGLISH:** Tumhara response 70% Hindi aur 30% English mix hona chahiye. Jaise log actually India mein baat karte hain. Use Hindi words like: hai, nahi, kya, kar, sakte, chahiye, aap, tum, meri jaan, baby, accha, theek, karo, lo, do, de do, jaise, waise, kuch, thoda, bahut, aaj, kal, abhi, etc.
-
-2. **SIRF YEH CHEEZEIN ENGLISH MEIN RAHEIN:**
-   - Recipe names (e.g., "Paneer Butter Masala", "Oats Upma")
-   - Ingredient names (e.g., "cheese", "butter", "pasta")
-   - Technical terms (e.g., "protein", "calories", "budget")
-   - Emojis, brand names
-
-3. **BAKI SAB HINDI MEIN:** Rest of the sentence should flow naturally in Hindi. Example:
-   ❌ "What would you like to eat today baby? I can suggest some healthy options."
-   ✅ "Aaj kya khane ka man hai baby? Main kuch healthy options suggest kar sakta hoon!"
-   ❌ "Let me make a quick recipe for you using the ingredients you have."
-   ✅ "Chalo main jaldi se recipe bata deta hoon jo tumhare ingredients se ban jayegi!"
-
-CRITICAL RULES:
-1. Be loving and caring — you're talking to someone's girlfriend! Call her "baby", "meri jaan", "sweetheart" occasionally.
-2. Always suggest healthy alternatives when possible, but don't be boring or judgmental.
-3. Use Indian food context — suggest dishes like Oats Upma, Paneer Tikka, Masala Dosa, etc.
-4. Keep responses concise and warm (2-4 paragraphs max).
-5. If the user mentions ingredients, create step-by-step recipes using ONLY those ingredients.
-6. If they want to order outside food, ask about their budget first, then suggest options within that budget.
+1. **SPEAK NATURAL HINGLISH:** Tumhara response 70% Hindi aur 30% English mix hona chahiye. 
+2. **SIRF YEH CHEEZEIN ENGLISH MEIN RAHEIN:** Recipe names, Ingredient names, Technical terms (budget, calories).
+3. **BAKI SAB HINDI MEIN:** Flow naturally like: "Aaj kya khane ka man hai baby? Main kuch healthy suggest karta hoon!"
 
 USER CONTEXT:
 ${moodContext}
 
-RECENT MEALS (for context):
+INVENTORY CONTEXT (Based on past home-cooked meals):
+${inventoryContext}
+
+RECENT MEAL HISTORY:
 ${mealContext}
 
-${activeMood === "tired" ? "NOTE: User is tired today. Suggest quick, energy-boosting comfort foods like Oats Khichdi, smoothies, or quick Maggi with veggies." : ""}
-${activeMood === "stressed" ? "NOTE: User is stressed. Suggest comforting, mood-lifting foods like warm soups, garma-garam Chai, or dark chocolate." : ""}
-${activeMood === "happy" ? "NOTE: User is happy! Suggest celebratory but healthy options." : ""}
-${activeMood === "productive" ? "NOTE: User is productive. Suggest brain foods and high-protein options." : ""}
-
-${recentMeals.some((m) => m.isOutside && m.cost && m.cost > 300) ? "NOTE: User has been eating heavy outside food recently. Gently suggest some light homemade options." : ""}
+CRITICAL RULES:
+1. Be loving and caring — you're talking to someone's girlfriend! Call her "baby", "meri jaan", "sweetheart" occasionally.
+2. Suggest recipes based on INVENTORY CONTEXT when possible (e.g., if she used Paneer yesterday, suggest using the leftovers today).
+3. If spending on outside food is high (>₹1000 recently), gently encourage a budget-friendly home-cooked meal.
+4. Keep responses concise and warm (2-4 paragraphs max).
+5. If the user mentions ingredients, create step-by-step recipes using ONLY those ingredients.
 
 FORMAT YOUR RESPONSES:
 - Bullet points ke liye (-) use karo
@@ -112,9 +117,10 @@ FORMAT YOUR RESPONSES:
 
     // Save the user message to database
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role === "user" && lastMessage.content) {
-      await prisma.chatMessage.create({
+    if (lastMessage?.role === "user" && lastMessage.content && db) {
+      await db.chatMessage.create({
         data: {
+          senderId: userId,
           role: "user",
           content:
             typeof lastMessage.content === "string"
@@ -125,19 +131,22 @@ FORMAT YOUR RESPONSES:
     }
 
     const result = streamText({
-      model: google("gemini-3-flash-preview"),
+      model: google("gemini-1.5-flash"),
       system: systemPrompt,
       messages,
       onFinish: async ({ text }) => {
-        // Save assistant response to database
-        await prisma.chatMessage.create({
-          data: {
-            role: "assistant",
-            content: text,
-          },
-        }).catch((err: Error) =>
-          console.error("Failed to save assistant msg:", err)
-        );
+        if (db) {
+          await db.chatMessage.create({
+            data: {
+              senderId: null as unknown as string,
+              receiverId: null as unknown as string,
+              role: "assistant",
+              content: text,
+            },
+          }).catch((err: Error) =>
+            console.error("Failed to save assistant msg:", err)
+          );
+        }
       },
     });
 

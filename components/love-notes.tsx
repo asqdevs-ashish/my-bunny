@@ -3,20 +3,27 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Heart, Sparkles } from "lucide-react";
-import { loveNotes } from "@/lib/constants";
 
 export function LoveNotes() {
   const [note, setNote] = useState("");
-  const [dateKey, setDateKey] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const today = new Date().toDateString();
-    setDateKey(today);
+    async function fetchNote() {
+      try {
+        const res = await fetch("/api/love-notes");
+        if (res.ok) {
+          const data = await res.json();
+          setNote(data.content);
+        }
+      } catch (error) {
+        console.error("Failed to fetch love note:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-    // Use a deterministic index based on the date
-    const dayIndex = new Date().getDate();
-    const noteIndex = dayIndex % loveNotes.length;
-    setNote(loveNotes[noteIndex]);
+    fetchNote();
   }, []);
 
   return (
@@ -40,9 +47,14 @@ export function LoveNotes() {
         </CardTitle>
       </CardHeader>
       <CardContent className="relative">
-        <div className="animate-scale-in rounded-xl border border-rose-200/50 dark:border-rose-800/30 bg-white/70 dark:bg-black/30 p-4 shadow-sm backdrop-blur-sm" key={dateKey}>
-          <p className="text-sm leading-relaxed text-foreground/80 italic">              “{note || "You are loved! ❤️"}”
-          </p>
+        <div className="animate-scale-in rounded-xl border border-rose-200/50 dark:border-rose-800/30 bg-white/70 dark:bg-black/30 p-4 shadow-sm backdrop-blur-sm">
+          {loading ? (
+            <div className="h-5 w-full animate-pulse rounded bg-rose-100 dark:bg-rose-900/20" />
+          ) : (
+            <p className="text-sm leading-relaxed text-foreground/80 italic">
+              “{note || "You are loved! ❤️"}”
+            </p>
+          )}
         </div>
         <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/70">
           <Sparkles className="h-3 w-3 text-rose-400" />

@@ -30,29 +30,30 @@ self.addEventListener("push", (event) => {
       const data = event.data.json();
       const options = {
         body: data.body || "Hey baby! 💕",
-        icon: data.icon || "/icon-192.svg",
-        badge: "/icon-192.svg",
-        vibrate: [100, 50, 100],
+        icon: data.icon || "/icon-192.jpeg",
+        badge: "/icon-192.jpeg",
+        vibrate: data.vibrate || [100, 50, 100],
         data: {
           dateOfArrival: Date.now(),
           url: data.url || "/dashboard",
         },
         actions: data.actions || [
           { action: "open", title: "Open App 💕" },
+          { action: "reply", title: "Reply 💬" },
         ],
         tag: data.tag || "chef-cupid",
-        requireInteraction: false,
+        requireInteraction: true, // Keep notification visible until user interacts
       };
-      event.waitUntil(self.registration.showNotification(data.title || "Suar's Kitchen", options));
+      event.waitUntil(self.registration.showNotification(data.title || "Suar's Care", options));
     } catch {
       // If not JSON, show raw text
       const options = {
         body: event.data.text(),
-        icon: "/icon-192.svg",
-        badge: "/icon-192.svg",
+        icon: "/icon-192.jpeg",
+        badge: "/icon-192.jpeg",
         vibrate: [100, 50, 100],
       };
-      event.waitUntil(self.registration.showNotification("Suar's Kitchen", options));
+      event.waitUntil(self.registration.showNotification("Suar's Care", options));
     }
   }
 });
@@ -62,6 +63,11 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   const urlToOpen = event.notification.data?.url || "/dashboard";
+
+  // Handle action buttons
+  if (event.action === "reply") {
+    // Reply action - just open the chat page to reply
+  }
 
   event.waitUntil(
     clients
@@ -94,8 +100,8 @@ self.addEventListener("periodicsync", (event) => {
     event.waitUntil(
       self.registration.showNotification("💧 Water Reminder", {
         body: "Time to hydrate, baby! 💧",
-        icon: "/icon-192.svg",
-        badge: "/icon-192.svg",
+        icon: "/icon-192.jpeg",
+        badge: "/icon-192.jpeg",
         vibrate: [100, 50, 100],
         tag: "water-reminder",
       })
@@ -105,8 +111,8 @@ self.addEventListener("periodicsync", (event) => {
     event.waitUntil(
       self.registration.showNotification("💕 Love Note", {
         body: "Just a reminder — you're amazing! 💕",
-        icon: "/icon-192.svg",
-        badge: "/icon-192.svg",
+        icon: "/icon-192.jpeg",
+        badge: "/icon-192.jpeg",
         vibrate: [100, 50, 100],
         tag: "love-note",
       })

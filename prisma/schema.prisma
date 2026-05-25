@@ -6,17 +6,97 @@ datasource db {
   provider = "postgresql"
 }
 
-model ChatMessage {
+// ─── User Model ───────────────────────────────────────────────
+model User {
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  password        String
+  // Partner linking — self-relation
+  partnerId       String?
+  partner         User?     @relation("PartnerRelation", fields: [partnerId], references: [id])
+  // Reverse lookup — users that have this user as partner
+  partneredUsers  User[]    @relation("PartnerRelation")
+  partnerSince    DateTime?
+  partnerCode     String?   @unique
+  // Web Push subscription JSON
+  pushSubscription Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  sentMessages     ChatMessage[] @relation("SentMessages")
+  receivedMessages ChatMessage[] @relation("ReceivedMessages")
+  mealLogs         MealLog[]
+  moods            UserMood[]
+  waterLogs        WaterLog[]
+  loveNotes        LoveNote[]    @relation("UserLoveNotes")
+  memories         Memory[]      @relation("UserMemories")
+  sentSecretNotes     SecretNote[] @relation("SentSecretNotes")
+  receivedSecretNotes SecretNote[] @relation("ReceivedSecretNotes")
+
+  @@map("users")
+}
+
+// ─── Memories ────────────────────────────────────────────────
+model Memory {
   id        String   @id @default(cuid())
-  role      String   // "user" | "assistant"
-  content   String
+  userId    String
+  user      User     @relation("UserMemories", fields: [userId], references: [id])
+  imageUrl  String
+  caption   String?
+  date      DateTime @default(now())
   createdAt DateTime @default(now())
+
+  @@map("memories")
+}
+
+// ─── Secret Love Notes ───────────────────────────────────────
+model SecretNote {
+  id         String   @id @default(cuid())
+  senderId   String
+  sender     User     @relation("SentSecretNotes", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User     @relation("ReceivedSecretNotes", fields: [receiverId], references: [id])
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@map("secret_notes")
+}
+
+// ─── Love Notes ───────────────────────────────────────────────
+model LoveNote {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String?  // Optional: if partners write to each other
+  author    User?    @relation("UserLoveNotes", fields: [authorId], references: [id])
+  isSystem  Boolean  @default(true) // If true, it's a daily auto-generated note
+  displayAt DateTime @default(now()) // When this note should be shown
+  createdAt DateTime @default(now())
+
+  @@map("love_notes")
+}
+
+// ─── Chat Messages ────────────────────────────────────────────
+model ChatMessage {
+  id         String   @id @default(cuid())
+  senderId   String?  // Nullable for AI assistant
+  sender     User?    @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId String?  // Nullable for AI chat
+  receiver   User?    @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  role       String   // "user" | "assistant" | "partner"
+  content    String
+  createdAt  DateTime @default(now())
 
   @@map("chat_messages")
 }
 
+// ─── Meal Logs ────────────────────────────────────────────────
 model MealLog {
   id          String   @id @default(cuid())
+  userId      String?  // Nullable for backward compatibility
+  user        User?    @relation(fields: [userId], references: [id])
   mealName    String
   ingredients String   // Comma-separated or JSON string
   isOutside   Boolean  @default(false)
@@ -27,11 +107,28 @@ model MealLog {
   @@map("meal_logs")
 }
 
+// ─── User Moods ───────────────────────────────────────────────
 model UserMood {
   id        String   @id @default(cuid())
+  userId    String?  // Nullable for backward compatibility
+  user      User?    @relation(fields: [userId], references: [id])
   mood      String   // "happy" | "stressed" | "tired" | "productive"
   note      String?
   createdAt DateTime @default(now())
 
   @@map("user_moods")
+}
+
+// ─── Water Logs ───────────────────────────────────────────────
+model WaterLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime // Date portion only (normalized to midnight)
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@map("water_logs")
 }

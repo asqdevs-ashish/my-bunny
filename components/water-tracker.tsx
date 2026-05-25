@@ -8,38 +8,57 @@ import { MAX_WATER_GLASSES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const CIRCUMFERENCE = 2 * Math.PI * 80; // 502.65
-const STORAGE_KEY = "chef-cupid-water-glasses";
 
 export function WaterTracker() {
   const [glasses, setGlasses] = useState(0);
   const [celebrating, setCelebrating] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const today = new Date().toDateString();
-    const savedData = saved ? JSON.parse(saved) : {};
-
-    if (savedData.date === today) {
-      setGlasses(savedData.count || 0);
-    } else {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ date: today, count: 0 })
-      );
-    }
+    fetchTodayWater();
   }, []);
 
-  function addGlass() {
+  async function fetchTodayWater() {
+    try {
+      const res = await fetch("/api/water");
+      if (res.ok) {
+        const data = await res.json();
+        setGlasses(data.glasses || 0);
+      }
+    } catch {
+      // Fallback to localStorage
+      const saved = localStorage.getItem("chef-cupid-water-glasses");
+      const today = new Date().toDateString();
+      const savedData = saved ? JSON.parse(saved) : {};
+      if (savedData.date === today) {
+        setGlasses(savedData.count || 0);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function addGlass() {
     const newCount = Math.min(glasses + 1, MAX_WATER_GLASSES);
     setGlasses(newCount);
 
-    const today = new Date().toDateString();
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ date: today, count: newCount })
-    );
+    // Save to DB
+    try {
+      await fetch("/api/water", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ glasses: newCount }),
+      });
+    } catch {
+      // Fallback to localStorage
+      const today = new Date().toDateString();
+      localStorage.setItem(
+        "chef-cupid-water-glasses",
+        JSON.stringify({ date: today, count: newCount })
+      );
+    }
 
     if (newCount === MAX_WATER_GLASSES) {
       setCelebrating(true);
@@ -47,19 +66,27 @@ export function WaterTracker() {
     }
   }
 
-  function resetGlasses() {
+  async function resetGlasses() {
     setGlasses(0);
-    const today = new Date().toDateString();
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ date: today, count: 0 })
-    );
+    try {
+      await fetch("/api/water", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ glasses: 0 }),
+      });
+    } catch {
+      const today = new Date().toDateString();
+      localStorage.setItem(
+        "chef-cupid-water-glasses",
+        JSON.stringify({ date: today, count: 0 })
+      );
+    }
   }
 
   const progress = glasses / MAX_WATER_GLASSES;
   const strokeDashoffset = CIRCUMFERENCE - progress * CIRCUMFERENCE;
 
-  if (!mounted) return null;
+  if (!mounted || loading) return null;
 
   return (
     <Card className="relative overflow-hidden group/card">

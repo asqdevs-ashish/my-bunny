@@ -4,7 +4,7 @@ import { NotificationSettings } from "@/components/notification-settings";
 import { useNotificationContext } from "@/components/notification-provider";
 
 export function NotificationSettingsWrapper() {
-  const { permission, preferences, requestPermission, updatePreference } =
+  const { permission, preferences, requestPermission, updatePreference, webPushSubscribed } =
     useNotificationContext();
 
   return (
@@ -13,6 +13,7 @@ export function NotificationSettingsWrapper() {
       preferences={preferences}
       requestPermission={requestPermission}
       updatePreference={updatePreference}
+      webPushSubscribed={webPushSubscribed}
     />
   );
 }
