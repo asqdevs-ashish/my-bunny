@@ -1,0 +1,113 @@
+/**
+ * Environment variable validation.
+ * Call `validateEnv()` during app startup to warn about missing vars.
+ */
+
+const REQUIRED_VARS = [
+  "NEXTAUTH_SECRET",
+  "DATABASE_URL",
+] as const;
+
+const VARS_WITH_DEFAULTS: Record<string, string> = {
+  NEXTAUTH_URL: "Inferred from Vercel deployment URL",
+};
+
+const PUSH_VARS = [
+  "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+  "VAPID_PRIVATE_KEY",
+] as const;
+
+const AUTH_VARS = [
+  "MY_EMAIL",
+  "MY_PASSWORD",
+  "PARTNER_EMAIL",
+  "PARTNER_PASSWORD",
+] as const;
+
+const CLOUDINARY_VARS = [
+  "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME",
+  "NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET",
+] as const;
+
+type EnvStatus = "ok" | "missing" | "optional";
+
+interface EnvCheckResult {
+  var: string;
+  status: EnvStatus;
+  note?: string;
+}
+
+export function checkEnv(): EnvCheckResult[] {
+  const results: EnvCheckResult[] = [];
+
+  for (const v of REQUIRED_VARS) {
+    if (!process.env[v]) {
+      results.push({ var: v, status: "missing", note: "REQUIRED — app may not work without this" });
+    } else {
+      results.push({ var: v, status: "ok" });
+    }
+  }
+
+  // Check if auth fallback vars are set (at least one pair)
+  const authEmail = process.env.MY_EMAIL || process.env.GF_EMAIL;
+  const authPassword = process.env.MY_PASSWORD || process.env.GF_PASSWORD;
+  if (!authEmail || !authPassword) {
+    results.push({
+      var: "MY_EMAIL / MY_PASSWORD",
+      status: "optional",
+      note: "Not set. Use DATABASE_URL with a seeded DB instead, or set these for env-var-based auth.",
+    });
+  }
+
+  for (const v of PUSH_VARS) {
+    if (!process.env[v]) {
+      results.push({ var: v, status: "optional", note: "Push notifications will be disabled" });
+    }
+  }
+
+  for (const v of CLOUDINARY_VARS) {
+    if (!process.env[v]) {
+      results.push({ var: v, status: "optional", note: "Memory scrapbook image uploads will not work" });
+    }
+  }
+
+  return results;
+}
+
+export function logEnvStatus() {
+  if (typeof window !== "undefined") return; // Server-side only
+
+  const results = checkEnv();
+  const missing = results.filter((r) => r.status === "missing");
+  const optional = results.filter((r) => r.status !== "ok");
+
+  if (missing.length > 0) {
+    console.warn("⚠️ Missing REQUIRED environment variables:");
+    for (const r of missing) {
+      console.warn(`   ❌ ${r.var} — ${r.note}`);
+    }
+  }
+
+  if (optional.length > 0) {
+    console.info("ℹ️ Optional env vars not set:");
+    for (const r of optional) {
+      console.info(`   ⚠️  ${r.var} — ${r.note}`);
+    }
+  }
+}
+
+/**
+ * Whether push notifications are configured on the server side.
+ */
+export function isPushConfigured(): boolean {
+  return !!(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+}
+
+/**
+ * Whether auth fallback env vars are configured.
+ */
+export function isAuthFallbackConfigured(): boolean {
+  const email = process.env.MY_EMAIL || process.env.GF_EMAIL;
+  const password = process.env.MY_PASSWORD || process.env.GF_PASSWORD;
+  return !!(email && password);
+}

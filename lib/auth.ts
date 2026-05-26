@@ -3,6 +3,21 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * Wraps a promise with a timeout so it doesn't hang forever.
+ * If the promise doesn't settle within `ms` milliseconds, it rejects with a timeout error.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  // Prevent unhandled rejection if the original promise rejects after the timeout fires
+  promise.catch(() => {});
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`DB ${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
@@ -17,13 +32,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const email = (credentials.email as string).trim().toLowerCase();
         const password = credentials.password as string;
 
-        // Try to find user in database
+        // Try to find user in database (with 5s timeout so it doesn't hang on Vercel)
         try {
           const db = prisma;
           if (db) {
-            const user = await db.user.findUnique({
-              where: { email },
-            });
+            const user = await withTimeout(
+              db.user.findUnique({ where: { email } }),
+              5000,
+              "findUnique"
+            );
 
             if (user) {
               // Compare password
@@ -71,19 +88,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         if (fallbackUser) {
-          // Resolve or create in DB to get a real ID
+          // Resolve or create in DB to get a real ID (with 5s timeout)
           try {
             const db = prisma;
             if (db) {
-              const user = await db.user.upsert({
-                where: { email: fallbackUser.email },
-                update: { name: fallbackUser.name },
-                create: {
-                  name: fallbackUser.name,
-                  email: fallbackUser.email,
-                  password: await bcrypt.hash(password, 10),
-                },
-              });
+              const user = await withTimeout(
+                db.user.upsert({
+                  where: { email: fallbackUser.email },
+                  update: { name: fallbackUser.name },
+                  create: {
+                    name: fallbackUser.name,
+                    email: fallbackUser.email,
+                    password: await bcrypt.hash(password, 10),
+                  },
+                }),
+                5000,
+                "upsert"
+              );
               return {
                 id: user.id,
                 name: user.name,
@@ -117,13 +138,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.name = user.name;
         token.email = user.email;
       } else if (token.id) {
-        // Refresh user info from DB if possible
+        // Refresh user info from DB if possible (with 3s timeout)
         try {
           const db = prisma;
           if (db && token.id !== "1" && token.id !== "2") {
-            const dbUser = await db.user.findUnique({
-              where: { id: token.id as string },
-            });
+            const dbUser = await withTimeout(
+              db.user.findUnique({ where: { id: token.id as string } }),
+              3000,
+              "jwt-findUnique"
+            );
             if (dbUser) {
               token.name = dbUser.name;
               token.email = dbUser.email;

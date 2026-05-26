@@ -13,6 +13,7 @@ interface NotificationSettingsProps {
   requestPermission: () => Promise<boolean>;
   updatePreference: (type: NotificationType, value: boolean) => void;
   webPushSubscribed?: boolean;
+  testNotification?: () => Promise<boolean>;
 }
 
 const notifItems: {
@@ -57,9 +58,11 @@ export function NotificationSettings({
   preferences,
   requestPermission,
   updatePreference,
+  testNotification,
 }: NotificationSettingsProps) {
   const [mounted, setMounted] = useState(false);
   const [silentHours, setSilentHours] = useState(true);
+  const [testSent, setTestSent] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -112,6 +115,28 @@ export function NotificationSettings({
                 </p>
               </div>
             </div>
+
+            {/* Test Notification Button */}
+            {testNotification && (
+              <Button
+                onClick={async () => {
+                  setTestSent(true);
+                  await testNotification();
+                  setTimeout(() => setTestSent(false), 2500);
+                }}
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "w-full gap-2 rounded-xl py-5 transition-all",
+                  testSent
+                    ? "border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
+                    : "border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                )}
+              >
+                <Bell className={cn("h-4 w-4", testSent && "animate-bounce")} />
+                {testSent ? "✅ Test Sent!" : "Send Test Notification 🔔"}
+              </Button>
+            )}
 
             <div className="space-y-3">
               {/* Silent Hours Toggle */}

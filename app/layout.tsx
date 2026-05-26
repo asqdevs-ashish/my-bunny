@@ -5,6 +5,12 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "@/components/session-provider";
 import { NotificationProvider } from "@/components/notification-provider";
 import { ConditionalFooter } from "@/components/footer";
+import { logEnvStatus } from "@/lib/env";
+
+// Log env var status on server startup (won't run on client)
+if (typeof window === "undefined") {
+  logEnvStatus();
+}
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
