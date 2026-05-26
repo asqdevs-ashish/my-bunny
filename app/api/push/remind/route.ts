@@ -102,9 +102,13 @@ async function sendReminderPush(
 
 /**
  * POST /api/push/remind
- * Body: { type: "water" | "love" | "meal" | "mood" }
+ * Body: { type: "water" | "love" | "meal" | "mood", subscription?: object }
  * Called from client-side when the app is open and a reminder fires.
  * Sends server-side Web Push for background delivery on mobile.
+ * 
+ * If `subscription` is provided in the body (from the browser), it will be
+ * saved to the user's record and used immediately. This handles the case
+ * where the subscription wasn't previously saved to the DB.
  */
 export async function POST(req: Request) {
   const session = await auth();
@@ -113,7 +117,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { type } = await req.json();
+    const body = await req.json();
+    const { type, subscription } = body;
+
     if (!type || !VALID_TYPES.includes(type)) {
       return new Response(
         JSON.stringify({ error: "Invalid reminder type" }),
@@ -124,19 +130,32 @@ export async function POST(req: Request) {
     const db = prisma;
     if (!db) throw new Error("Database not available");
 
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { pushSubscription: true },
-    });
+    // Get the subscription to use — either from body (client sent it) or from DB
+    let subToUse = subscription;
 
-    if (!user?.pushSubscription) {
+    if (!subToUse || !subToUse.endpoint) {
+      // No subscription in body — check DB
+      const user = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { pushSubscription: true },
+      });
+      subToUse = user?.pushSubscription;
+    } else {
+      // Client sent the subscription — save it to DB for future cron jobs
+      await db.user.update({
+        where: { id: session.user.id },
+        data: { pushSubscription: subToUse },
+      }).catch(() => {});
+    }
+
+    if (!subToUse) {
       return new Response(
         JSON.stringify({ error: "No push subscription found. Enable notifications first." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const sent = await sendReminderPush(user.pushSubscription, type as ReminderType);
+    const sent = await sendReminderPush(subToUse, type as ReminderType);
 
     if (sent) {
       return Response.json({ success: true, type, message: "Reminder sent via push notification" });

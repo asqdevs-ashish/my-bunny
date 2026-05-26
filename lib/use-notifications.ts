@@ -45,13 +45,30 @@ const WATER_NOTIFICATIONS = [
  * Call the API to send a server-side push notification.
  * This ensures the notification arrives via Web Push even when
  * the app is backgrounded or closed on mobile (Android).
+ * 
+ * Also sends the browser's push subscription so the server can
+ * save it on-the-fly if it wasn't previously stored in the DB.
  */
 async function sendServerPush(type: string): Promise<boolean> {
   try {
+    // Get the browser's push subscription to send along
+    let subscription: PushSubscriptionJSON | undefined;
+    if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          subscription = sub.toJSON();
+        }
+      } catch {
+        // Ignore errors getting subscription
+      }
+    }
+
     const res = await fetch("/api/push/remind", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type }),
+      body: JSON.stringify({ type, subscription }),
     });
     return res.ok;
   } catch (error) {
