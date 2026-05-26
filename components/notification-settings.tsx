@@ -13,7 +13,6 @@ interface NotificationSettingsProps {
   requestPermission: () => Promise<boolean>;
   updatePreference: (type: NotificationType, value: boolean) => void;
   webPushSubscribed?: boolean;
-  testNotification?: () => Promise<boolean>;
 }
 
 const notifItems: {
@@ -58,7 +57,6 @@ export function NotificationSettings({
   preferences,
   requestPermission,
   updatePreference,
-  testNotification,
 }: NotificationSettingsProps) {
   const [mounted, setMounted] = useState(false);
   const [silentHours, setSilentHours] = useState(true);
@@ -110,17 +108,9 @@ export function NotificationSettings({
                   Smart Reminders Active
                 </p>
                 <p className="text-[10px] text-green-600/70 dark:text-green-500/70 mt-1">
-                  Alerts work even when the app is closed on Android 📱
+                  You&apos;ll get alerts while the app is open
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={testNotification}
-                className="h-7 text-[10px] rounded-lg border-green-200 dark:border-green-800/50 bg-white dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40"
-              >
-                Test
-              </Button>
             </div>
 
             <div className="space-y-3">

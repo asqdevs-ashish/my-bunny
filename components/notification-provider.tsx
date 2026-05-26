@@ -9,7 +9,6 @@ interface NotificationContextType {
   requestPermission: () => Promise<boolean>;
   updatePreference: (type: NotificationType, value: boolean) => void;
   showNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
-  testNotification: () => Promise<boolean>;
   webPushSubscribed: boolean;
 }
 
