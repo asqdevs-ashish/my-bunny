@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, Plus, Loader2, Calendar, Heart, Camera, X, Upload } from "lucide-react";
+import { Image as ImageIcon, Plus, Loader2, Calendar, Heart, Camera, X } from "lucide-react";
 import Image from "next/image";
 import imageCompression from "browser-image-compression";
 import { cn } from "@/lib/utils";
@@ -53,51 +53,109 @@ export function MemoryScrapbook() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const originalSize = (file.size / 1024 / 1024).toFixed(2);
-    console.log(`Original image size: ${originalSize} MB`);
+    const originalSizeMB = file.size / 1024 / 1024;
+    console.log(`📸 Original image size: ${originalSizeMB.toFixed(2)} MB`);
 
-    const options = {
-      maxSizeMB: 1.5,
-      maxWidthOrHeight: 1920,
-      useWebWorker: true,
-      onProgress: (progress: number) => {
-        setCompressionProgress(progress);
-      },
-    };
+    // ── Check Cloudinary env vars upfront ──
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+    if (!cloudName || !uploadPreset) {
+      alert("Cloudinary is not configured. Please set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET in your .env file.");
+      console.error("❌ Missing Cloudinary env vars:", { cloudName, uploadPreset });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     setUploading(true);
+
     try {
-      // 1. Compress Image
-      const compressedFile = await imageCompression(file, options);
-      const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
-      console.log(`Compressed image size: ${compressedSize} MB`);
-      setCompressionProgress(null);
+      // ── Step 1: Compress Image (only if > 1.5MB) ──
+      let fileToUpload = file;
 
-      // 2. Upload to Cloudinary
-      const formData = new FormData();
-      formData.append("file", compressedFile);
-      formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "");
+      if (originalSizeMB > 1.5) {
+        console.log("🔄 Compressing image...");
+        setCompressionProgress(0);
 
-      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
+        const options = {
+          maxSizeMB: 1.5,
+          maxWidthOrHeight: 1920,
+          useWebWorker: false, // Web worker can fail in some environments — disabled for reliability
+          onProgress: (progress: number) => {
+            setCompressionProgress(Math.round(progress));
+          },
+        };
+
+        try {
+          // Try with web worker first (faster, non-blocking)
+          const compressedFile = await imageCompression(file, { ...options, useWebWorker: true });
+          const compressedSizeMB = compressedFile.size / 1024 / 1024;
+          console.log(`✅ Compressed: ${originalSizeMB.toFixed(2)} MB → ${compressedSizeMB.toFixed(2)} MB`);
+
+          if (compressedFile.size < file.size) {
+            fileToUpload = compressedFile;
+          } else {
+            console.warn("⚠️ Compression made file larger — using original");
+          }
+        } catch (webWorkerError) {
+          console.warn("⚠️ Web worker compression failed, retrying without worker:", webWorkerError);
+          try {
+            const compressedFile = await imageCompression(file, { ...options, useWebWorker: false });
+            const compressedSizeMB = compressedFile.size / 1024 / 1024;
+            console.log(`✅ Compressed (fallback): ${originalSizeMB.toFixed(2)} MB → ${compressedSizeMB.toFixed(2)} MB`);
+            if (compressedFile.size < file.size) {
+              fileToUpload = compressedFile;
+            }
+          } catch (fallbackError) {
+            console.error("❌ Compression fallback also failed, using original:", fallbackError);
+          }
         }
+
+        setCompressionProgress(null);
+      } else {
+        console.log("✅ Image already under 1.5MB — skipping compression");
+      }
+
+      // ── Step 2: Upload to Cloudinary (direct upload — bypasses Vercel) ──
+      console.log("☁️ Uploading to Cloudinary...");
+      const formData = new FormData();
+      formData.append("file", fileToUpload);
+      formData.append("upload_preset", uploadPreset);
+
+      const uploadRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        { method: "POST", body: formData }
       );
 
-      if (!res.ok) throw new Error("Cloudinary upload failed");
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text().catch(() => "Unknown error");
+        console.error("❌ Cloudinary responded:", uploadRes.status, errText);
 
-      const data = await res.json();
+        if (uploadRes.status === 400 && errText.includes("File size too large")) {
+          alert("This photo is too large even after compression. Please choose a smaller photo or reduce resolution.");
+        } else if (uploadRes.status === 401 || uploadRes.status === 403) {
+          alert("Cloudinary upload preset is invalid. Please check your configuration.");
+        } else if (uploadRes.status === 413) {
+          alert("Photo is too large for Cloudinary's limit. Please choose a smaller photo.");
+        } else {
+          alert("Failed to upload photo to cloud. Please try again.");
+        }
+        throw new Error("CLOUDINARY_UPLOAD_FAILED");
+      }
+
+      const data = await uploadRes.json();
+      console.log(`✅ Uploaded to Cloudinary: ${data.secure_url}`);
+
+      // ── Step 3: Set the image URL ──
       setNewMemory((prev) => ({ ...prev, imageUrl: data.secure_url }));
+
     } catch (error) {
-      console.error("Image processing/upload failed:", error);
-      alert("Failed to process image. Please try a different photo.");
+      console.error("❌ handleFileChange error:", error);
+      if (!(error instanceof Error && error.message === "CLOUDINARY_UPLOAD_FAILED")) {
+        alert("Something went wrong processing your photo. Please try a different one.");
+      }
     } finally {
       setUploading(false);
       setCompressionProgress(null);
-      // Reset input
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
