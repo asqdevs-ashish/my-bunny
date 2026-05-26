@@ -1,19 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, Plus, Loader2, Calendar, Heart, Camera, X } from "lucide-react";
+import { Image as ImageIcon, Plus, Loader2, Calendar, Heart, Camera, X, Upload } from "lucide-react";
 import Image from "next/image";
-import Script from "next/script";
+import imageCompression from "browser-image-compression";
 import { cn } from "@/lib/utils";
-
-// Declare global for Cloudinary widget
-declare global {
-  interface Window {
-    cloudinary: any;
-  }
-}
 
 interface Memory {
   id: string;
@@ -29,7 +22,10 @@ export function MemoryScrapbook() {
   const [isAdding, setIsMenuOpen] = useState(false);
   const [newMemory, setNewMemory] = useState({ imageUrl: "", caption: "", date: new Date().toISOString().split('T')[0] });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState<number | null>(null);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchMemories();
@@ -53,24 +49,57 @@ export function MemoryScrapbook() {
     }
   }
 
-  const openUploadWidget = () => {
-    if (!window.cloudinary) return;
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    window.cloudinary.openUploadWidget(
-      {
-        cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-        uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
-        sources: ["local", "url", "camera"],
-        multiple: false,
-        clientAllowedFormats: ["png", "jpg", "jpeg", "webp"],
-        maxFileSize: 2000000, // 2MB
+    const originalSize = (file.size / 1024 / 1024).toFixed(2);
+    console.log(`Original image size: ${originalSize} MB`);
+
+    const options = {
+      maxSizeMB: 1.5,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+      onProgress: (progress: number) => {
+        setCompressionProgress(progress);
       },
-      (error: any, result: any) => {
-        if (!error && result && result.event === "success") {
-          setNewMemory(prev => ({ ...prev, imageUrl: result.info.secure_url }));
+    };
+
+    setUploading(true);
+    try {
+      // 1. Compress Image
+      const compressedFile = await imageCompression(file, options);
+      const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
+      console.log(`Compressed image size: ${compressedSize} MB`);
+      setCompressionProgress(null);
+
+      // 2. Upload to Cloudinary
+      const formData = new FormData();
+      formData.append("file", compressedFile);
+      formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "");
+
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
         }
-      }
-    );
+      );
+
+      if (!res.ok) throw new Error("Cloudinary upload failed");
+
+      const data = await res.json();
+      setNewMemory((prev) => ({ ...prev, imageUrl: data.secure_url }));
+    } catch (error) {
+      console.error("Image processing/upload failed:", error);
+      alert("Failed to process image. Please try a different photo.");
+    } finally {
+      setUploading(false);
+      setCompressionProgress(null);
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   async function handleAddMemory(e: React.FormEvent) {
@@ -99,7 +128,13 @@ export function MemoryScrapbook() {
 
   return (
     <>
-      <Script src="https://upload-widget.cloudinary.com/global/all.js" strategy="afterInteractive" />
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
       <Card className="relative overflow-hidden group/card border-rose-100 dark:border-rose-900/20 shadow-md">
         <CardHeader className="pb-3 border-b border-rose-50 dark:border-rose-900/10">
           <div className="flex items-center justify-between">
@@ -137,11 +172,23 @@ export function MemoryScrapbook() {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={openUploadWidget}
+                    disabled={uploading}
+                    onClick={() => fileInputRef.current?.click()}
                     className="w-full h-24 rounded-xl border-2 border-dashed border-rose-200 dark:border-rose-800 bg-white/50 dark:bg-black/20 flex flex-col gap-2 hover:bg-rose-50 transition-all"
                   >
-                    <Camera className="h-6 w-6 text-rose-400" />
-                    <span className="text-xs font-medium text-muted-foreground">Tap to Upload Photo</span>
+                    {uploading ? (
+                      <>
+                        <Loader2 className="h-6 w-6 text-rose-400 animate-spin" />
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {compressionProgress ? `Compressing ${compressionProgress}%...` : "Uploading to Cloud..."}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-6 w-6 text-rose-400" />
+                        <span className="text-xs font-medium text-muted-foreground">Tap to Upload Photo</span>
+                      </>
+                    )}
                   </Button>
                 )}
                 
@@ -159,7 +206,7 @@ export function MemoryScrapbook() {
                     onChange={(e) => setNewMemory({ ...newMemory, date: e.target.value })}
                     className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-rose-300/30"
                   />
-                  <Button type="submit" disabled={saving || !newMemory.imageUrl} size="sm" className="bg-rose-500 hover:bg-rose-600 text-white rounded-xl px-4">
+                  <Button type="submit" disabled={saving || uploading || !newMemory.imageUrl} size="sm" className="bg-rose-500 hover:bg-rose-600 text-white rounded-xl px-4">
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
                   </Button>
                 </div>

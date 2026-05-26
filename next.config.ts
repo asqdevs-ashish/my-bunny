@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Allow network access in dev mode
-  allowedDevOrigins: ["10.171.106.163"],
+  allowedDevOrigins: ["10.171.106.163", "10.45.154.163"],
   images: {
     remotePatterns: [
       {

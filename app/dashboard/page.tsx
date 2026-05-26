@@ -116,9 +116,7 @@ export default async function DashboardPage() {
             <SecretNoteExchange />
           </div>
           <div className="animate-slide-up sm:col-span-2 lg:col-span-1 space-y-4 sm:space-y-6" style={{ animationDelay: "0.4s" } as React.CSSProperties}>
-            <NotificationProvider>
-              <NotificationSettingsWrapper />
-            </NotificationProvider>
+            <NotificationSettingsWrapper />
             <MemoryScrapbook />
           </div>
           <div className="animate-slide-up" style={{ animationDelay: "0.45s" } as React.CSSProperties}>

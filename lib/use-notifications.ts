@@ -40,6 +40,26 @@ const WATER_NOTIFICATIONS = [
   "Hydration queen! Time for a glass 💦",
 ];
 
+// ─── Send Server-Side Push (for background delivery) ──────────
+/**
+ * Call the API to send a server-side push notification.
+ * This ensures the notification arrives via Web Push even when
+ * the app is backgrounded or closed on mobile (Android).
+ */
+async function sendServerPush(type: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/push/remind", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type }),
+    });
+    return res.ok;
+  } catch (error) {
+    console.warn("Server push failed (background notification may not arrive):", error);
+    return false;
+  }
+}
+
 // ─── Web Push Subscription ──────────────────────────────────
 /**
  * Register the service worker and subscribe to push notifications.
@@ -259,6 +279,7 @@ export function useNotifications() {
           if (lastDate !== now.toDateString()) {
             const msg = WATER_NOTIFICATIONS[Math.floor(Math.random() * WATER_NOTIFICATIONS.length)];
             showNotification("💧 Water Reminder", msg, "water-reminder");
+            void sendServerPush("water"); // Also send via server for background delivery
             localStorage.setItem(LAST_WATER_KEY, now.toISOString());
           }
         }
@@ -277,6 +298,7 @@ export function useNotifications() {
           if (lastDate !== now.toDateString()) {
             const msg = LOVE_NOTIFICATIONS[Math.floor(Math.random() * LOVE_NOTIFICATIONS.length)];
             showNotification("💕 Love Note for You", msg, "love-note");
+            void sendServerPush("love"); // Also send via server for background delivery
             localStorage.setItem(LAST_LOVE_KEY, now.toISOString());
           }
         }
@@ -307,6 +329,7 @@ export function useNotifications() {
               `Baby, it's ${mealNow.name} time! What should I suggest today?`,
               mealNow.tag
             );
+            void sendServerPush("meal"); // Also send via server for background delivery
             alreadyShown[today] = mealNow.tag;
             localStorage.setItem(LAST_MEAL_KEY, JSON.stringify(alreadyShown));
           }
@@ -329,6 +352,7 @@ export function useNotifications() {
               "How are you feeling this afternoon, baby? Tap to tell me!",
               "mood-check"
             );
+            void sendServerPush("mood"); // Also send via server for background delivery
             localStorage.setItem(LAST_MOOD_KEY, today);
           }
         }
@@ -347,12 +371,24 @@ export function useNotifications() {
     };
   }, [permission, startReminders]);
 
+  // Test a notification immediately (local + server push)
+  const testNotification = useCallback(async () => {
+    const local = await showNotification(
+      "🔔 Notification Test",
+      "If you can see this, notifications are working baby! 💕",
+      "test-notif"
+    );
+    void sendServerPush("water"); // Also test server-side push pipeline
+    return local;
+  }, [showNotification]);
+
   return {
     permission,
     preferences,
     requestPermission,
     updatePreference,
     showNotification,
+    testNotification,
     webPushSubscribed,
   };
 }
