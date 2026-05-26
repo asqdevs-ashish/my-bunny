@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bell, Droplets, Heart, UtensilsCrossed, Smile, Sparkles, Moon } from "lucide-react";
@@ -13,7 +13,6 @@ interface NotificationSettingsProps {
   requestPermission: () => Promise<boolean>;
   updatePreference: (type: NotificationType, value: boolean) => void;
   webPushSubscribed?: boolean;
-  testNotification?: () => Promise<boolean>;
 }
 
 const notifItems: {
@@ -58,11 +57,9 @@ export function NotificationSettings({
   preferences,
   requestPermission,
   updatePreference,
-  testNotification,
 }: NotificationSettingsProps) {
   const [mounted, setMounted] = useState(false);
   const [silentHours, setSilentHours] = useState(true);
-  const [testSent, setTestSent] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -99,7 +96,7 @@ export function NotificationSettings({
         )}
 
         {permission === "granted" && (
-          <>
+          <div className="space-y-3">
             {/* Web Push status badge */}
             <div className="flex items-center gap-2 rounded-xl bg-green-50 dark:bg-green-900/10 border border-green-200/50 dark:border-green-800/30 px-3 py-2">
               <span className="relative flex h-2.5 w-2.5">
@@ -116,105 +113,82 @@ export function NotificationSettings({
               </div>
             </div>
 
-            {/* Test Notification Button */}
-            {testNotification && (
-              <Button
-                onClick={async () => {
-                  setTestSent(true);
-                  await testNotification();
-                  setTimeout(() => setTestSent(false), 2500);
-                }}
-                size="sm"
-                variant="outline"
-                className={cn(
-                  "w-full gap-2 rounded-xl py-5 transition-all",
-                  testSent
-                    ? "border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
-                    : "border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                )}
-              >
-                <Bell className={cn("h-4 w-4", testSent && "animate-bounce")} />
-                {testSent ? "✅ Test Sent!" : "Send Test Notification 🔔"}
-              </Button>
-            )}
+            {/* Silent Hours Toggle */}
+            <button
+              onClick={() => setSilentHours(!silentHours)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-300 active:scale-[0.98]",
+                silentHours 
+                  ? "border-amber-200 bg-amber-50/40 dark:bg-amber-900/10 shadow-sm" 
+                  : "border-border bg-transparent opacity-60 hover:opacity-80"
+              )}
+            >
+              <div className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all",
+                silentHours ? "bg-amber-100 dark:bg-amber-900/30 shadow-sm" : "bg-muted"
+              )}>
+                <Moon className={cn("h-4 w-4", silentHours ? "text-amber-600" : "text-muted-foreground")} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold leading-tight">Silent Hours (10PM - 8AM)</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">No pings during sleep time 😴</p>
+              </div>
+              <div className={cn("h-5 w-10 rounded-full relative transition-colors duration-300", silentHours ? "bg-amber-500" : "bg-muted-foreground/30")}>
+                <div className={cn("h-4 w-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300", silentHours ? "left-[22px]" : "left-0.5")} />
+              </div>
+            </button>
 
-            <div className="space-y-3">
-              {/* Silent Hours Toggle */}
-              <button
-                onClick={() => setSilentHours(!silentHours)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-300 active:scale-[0.98]",
-                  silentHours 
-                    ? "border-amber-200 bg-amber-50/40 dark:bg-amber-900/10 shadow-sm" 
-                    : "border-border bg-transparent opacity-60 hover:opacity-80"
-                )}
-              >
-                <div className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all",
-                  silentHours ? "bg-amber-100 dark:bg-amber-900/30 shadow-sm" : "bg-muted"
-                )}>
-                  <Moon className={cn("h-4 w-4", silentHours ? "text-amber-600" : "text-muted-foreground")} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold leading-tight">Silent Hours (10PM - 8AM)</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">No pings during sleep time 😴</p>
-                </div>
-                <div className={cn("h-5 w-10 rounded-full relative transition-colors duration-300", silentHours ? "bg-amber-500" : "bg-muted-foreground/30")}>
-                  <div className={cn("h-4 w-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all duration-300", silentHours ? "left-[22px]" : "left-0.5")} />
-                </div>
-              </button>
+            <div className="h-px bg-border/50 my-2" />
 
-              <div className="h-px bg-border/50 my-2" />
+            {/* Notification Items List */}
+            {notifItems.map((item) => {
+              const Icon = item.icon;
+              const isEnabled = preferences[item.type];
 
-              {notifItems.map((item) => {
-                const Icon = item.icon;
-                const isEnabled = preferences[item.type];
-
-                return (
-                  <button
-                    key={item.type}
-                    onClick={() => updatePreference(item.type, !isEnabled)}
+              return (
+                <button
+                  key={item.type}
+                  onClick={() => updatePreference(item.type, !isEnabled)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-200 active:scale-[0.98]",
+                    isEnabled
+                      ? "border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-900/10 shadow-sm"
+                      : "border-border bg-transparent opacity-60 hover:opacity-80"
+                  )}
+                >
+                  <div
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-200 active:scale-[0.98]",
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all",
+                      isEnabled ? "bg-purple-100 dark:bg-purple-900/30 shadow-sm" : "bg-muted"
+                    )}
+                  >
+                    <Icon className={cn("h-4 w-4", item.color)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold leading-tight">{item.label}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                      {item.description}
+                    </p>
+                  </div>
+                  <div
+                    className={cn(
+                      "flex h-5 w-10 shrink-0 items-center rounded-full transition-all duration-300",
                       isEnabled
-                        ? "border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-900/10 shadow-sm"
-                        : "border-border bg-transparent opacity-60 hover:opacity-80"
+                        ? "bg-gradient-to-r from-purple-500 to-pink-500 shadow-sm"
+                        : "bg-muted-foreground/30"
                     )}
                   >
                     <div
                       className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all",
-                        isEnabled ? "bg-purple-100 dark:bg-purple-900/30 shadow-sm" : "bg-muted"
+                        "h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-300",
+                        isEnabled ? "translate-x-[22px]" : "translate-x-[2px]"
                       )}
-                    >
-                      <Icon className={cn("h-4 w-4", item.color)} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold leading-tight">{item.label}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                        {item.description}
-                      </p>
-                    </div>
-                    <div
-                      className={cn(
-                        "flex h-5 w-10 shrink-0 items-center rounded-full transition-all duration-300",
-                        isEnabled
-                          ? "bg-gradient-to-r from-purple-500 to-pink-500 shadow-sm"
-                          : "bg-muted-foreground/30"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-300",
-                          isEnabled ? "translate-x-[22px]" : "translate-x-[2px]"
-                        )}
-                      />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
+                    />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         )}
 
         <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground/60 pt-2 text-center leading-relaxed">
