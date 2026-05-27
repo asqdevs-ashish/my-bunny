@@ -100,15 +100,49 @@ async function sendReminderPush(
   });
 }
 
+// Allow serverless function to stay alive longer for delayed pushes (Vercel)
+export const maxDuration = 30;
+
+/**
+ * Get the push subscription for a user — from body subscription or from DB.
+ * Saves client-provided subscription to DB for future use.
+ */
+async function getPushSubscription(reqBody: { subscription?: unknown }, userId: string) {
+  const db = prisma;
+  if (!db) throw new Error("Database not available");
+
+  let subToUse = reqBody.subscription;
+
+  if (!subToUse || typeof subToUse !== "object" || !(subToUse as any)?.endpoint) {
+    // No subscription in body — check DB
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { pushSubscription: true },
+    });
+    subToUse = user?.pushSubscription;
+  } else {
+    // Client sent the subscription — save it to DB for future cron jobs
+    await db.user.update({
+      where: { id: userId },
+      data: { pushSubscription: subToUse },
+    }).catch(() => {});
+  }
+
+  return subToUse;
+}
+
 /**
  * POST /api/push/remind
- * Body: { type: "water" | "love" | "meal" | "mood", subscription?: object }
- * Called from client-side when the app is open and a reminder fires.
+ * Body: { type: "water" | "love" | "meal" | "mood", subscription?: object, delay?: number }
+ * 
+ * Called from client-side when a reminder fires.
  * Sends server-side Web Push for background delivery on mobile.
  * 
+ * If `delay` is provided (in ms), the push is sent after that delay,
+ * allowing you to close the app and still receive the notification.
+ * 
  * If `subscription` is provided in the body (from the browser), it will be
- * saved to the user's record and used immediately. This handles the case
- * where the subscription wasn't previously saved to the DB.
+ * saved to the user's record and used immediately.
  */
 export async function POST(req: Request) {
   const session = await auth();
@@ -118,7 +152,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { type, subscription } = body;
+    const { type, delay } = body;
 
     if (!type || !VALID_TYPES.includes(type)) {
       return new Response(
@@ -130,23 +164,8 @@ export async function POST(req: Request) {
     const db = prisma;
     if (!db) throw new Error("Database not available");
 
-    // Get the subscription to use — either from body (client sent it) or from DB
-    let subToUse = subscription;
-
-    if (!subToUse || !subToUse.endpoint) {
-      // No subscription in body — check DB
-      const user = await db.user.findUnique({
-        where: { id: session.user.id },
-        select: { pushSubscription: true },
-      });
-      subToUse = user?.pushSubscription;
-    } else {
-      // Client sent the subscription — save it to DB for future cron jobs
-      await db.user.update({
-        where: { id: session.user.id },
-        data: { pushSubscription: subToUse },
-      }).catch(() => {});
-    }
+    // Get the push subscription
+    const subToUse = await getPushSubscription(body, session.user.id);
 
     if (!subToUse) {
       return new Response(
@@ -155,6 +174,27 @@ export async function POST(req: Request) {
       );
     }
 
+    // If delay requested, wait before sending (tests background delivery)
+    if (typeof delay === "number" && delay > 0) {
+      // Fire the delayed push in background — respond immediately
+      const delayMs = Math.min(delay, 25000); // Cap at 25s to stay within maxDuration
+      setTimeout(async () => {
+        try {
+          await sendReminderPush(subToUse, type as ReminderType);
+        } catch (e) {
+          console.error("Delayed push failed:", e);
+        }
+      }, delayMs);
+
+      return Response.json({
+        success: true,
+        type,
+        delayed: delayMs,
+        message: `Notification scheduled in ${delayMs}ms`,
+      });
+    }
+
+    // Normal immediate push
     const sent = await sendReminderPush(subToUse, type as ReminderType);
 
     if (sent) {

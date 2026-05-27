@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Droplets, Heart, UtensilsCrossed, Smile, Sparkles, Moon } from "lucide-react";
+import { Bell, Droplets, Heart, UtensilsCrossed, Smile, Sparkles, Moon, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NotificationType } from "@/lib/use-notifications";
 
@@ -14,6 +14,7 @@ interface NotificationSettingsProps {
   updatePreference: (type: NotificationType, value: boolean) => void;
   webPushSubscribed?: boolean;
   testAllNotifications?: () => Promise<{ type: string; local: boolean; server: boolean }[]>;
+  testDelayedNotification?: (delayMs?: number) => Promise<{ type: string; server: boolean; delayMs: number }>;
 }
 
 const notifItems: {
@@ -59,14 +60,22 @@ export function NotificationSettings({
   requestPermission,
   updatePreference,
   testAllNotifications,
+  testDelayedNotification,
 }: NotificationSettingsProps) {
   const [mounted, setMounted] = useState(false);
   const [silentHours, setSilentHours] = useState(true);
   const [testing, setTesting] = useState(false);
   const [testResults, setTestResults] = useState<{ type: string; local: boolean; server: boolean }[] | null>(null);
+  const [delayedResult, setDelayedResult] = useState<{ type: string; server: boolean; delayMs: number } | null>(null);
+  const [delayedSending, setDelayedSending] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
   }, []);
 
   if (!mounted) return null;
@@ -82,6 +91,35 @@ export function NotificationSettings({
       setTestResults(results);
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handleDelayedTest = async () => {
+    if (!testDelayedNotification || delayedSending) return;
+    setDelayedSending(true);
+    setDelayedResult(null);
+
+    // Start countdown from 7 seconds
+    setCountdown(7);
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          if (countdownRef.current) clearInterval(countdownRef.current);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    try {
+      const result = await testDelayedNotification(7000);
+      setDelayedResult(result);
+    } finally {
+      setDelayedSending(false);
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
     }
   };
 
@@ -203,10 +241,8 @@ export function NotificationSettings({
                   </div>
                 </button>
               );
-            })}
-
-            {/* Test All Notifications Button */}
-            <div className="pt-1">
+            })}              {/* Test All Notifications Button */}
+            <div className="pt-1 space-y-2">
               <Button
                 onClick={handleTestAll}
                 disabled={testing}
@@ -229,7 +265,7 @@ export function NotificationSettings({
 
               {/* Test Results */}
               {testResults && (
-                <div className="mt-2 rounded-xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200/50 dark:border-gray-800/30 p-2.5 space-y-1">
+                <div className="rounded-xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200/50 dark:border-gray-800/30 p-2.5 space-y-1">
                   <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Results</p>
                   {testResults.map((r) => (
                     <div key={r.type} className="flex items-center justify-between text-xs">
@@ -244,6 +280,48 @@ export function NotificationSettings({
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Delayed Background Test Button */}
+              <Button
+                onClick={handleDelayedTest}
+                disabled={delayedSending}
+                size="sm"
+                variant="outline"
+                className="w-full gap-2 rounded-xl border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all duration-200"
+              >
+                {delayedSending ? (
+                  <>
+                    <span className="inline-flex h-4 w-4 items-center justify-center">
+                      {countdown !== null && (
+                        <span className="text-xs font-bold tabular-nums">{countdown}s</span>
+                      )}
+                    </span>
+                    Closing app in {countdown ?? "..."}s...
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-4 w-4" />
+                    Test 7s Delayed ⏰
+                  </>
+                )}
+              </Button>
+
+              {/* Delayed Result */}
+              {delayedResult && (
+                <div className="rounded-xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200/50 dark:border-gray-800/30 p-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="capitalize">Delayed ({delayedResult.delayMs}ms)</span>
+                    <span className={delayedResult.server ? "text-green-500" : "text-red-500"}>
+                      {delayedResult.server ? "✓ Server Queued" : "✗ Failed"}
+                    </span>
+                  </div>
+                  {delayedResult.server && (
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                      Notification scheduled! Close the app now — it will arrive in ~{Math.round(delayedResult.delayMs / 1000)}s via server push 💪
+                    </p>
+                  )}
                 </div>
               )}
             </div>

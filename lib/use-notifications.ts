@@ -49,7 +49,7 @@ const WATER_NOTIFICATIONS = [
  * Also sends the browser's push subscription so the server can
  * save it on-the-fly if it wasn't previously stored in the DB.
  */
-async function sendServerPush(type: string): Promise<boolean> {
+async function sendServerPush(type: string, delay?: number): Promise<boolean> {
   try {
     // Get the browser's push subscription to send along
     let subscription: PushSubscriptionJSON | undefined;
@@ -68,7 +68,7 @@ async function sendServerPush(type: string): Promise<boolean> {
     const res = await fetch("/api/push/remind", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, subscription }),
+      body: JSON.stringify({ type, subscription, ...(delay ? { delay } : {}) }),
     });
     return res.ok;
   } catch (error) {
@@ -400,6 +400,15 @@ export function useNotifications() {
   }, [showNotification]);
 
   /**
+   * Test a delayed notification — sends a push from the server after `delayMs`.
+   * Close the app within the delay window to verify background delivery works!
+   */
+  const testDelayedNotification = useCallback(async (delayMs: number = 7000) => {
+    const server = await sendServerPush("water", delayMs);
+    return { type: "water", server, delayMs };
+  }, []);
+
+  /**
    * Send ALL 4 types of test notifications one by one.
    * This lets you verify that every scheduled reminder works end-to-end.
    */
@@ -475,6 +484,7 @@ export function useNotifications() {
     showNotification,
     testNotification,
     testAllNotifications,
+    testDelayedNotification,
     webPushSubscribed,
   };
 }
