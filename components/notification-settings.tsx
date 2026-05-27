@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Droplets, Heart, UtensilsCrossed, Smile, Sparkles, Moon, Clock } from "lucide-react";
+import { Bell, Droplets, Heart, UtensilsCrossed, Smile, Sparkles, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NotificationType } from "@/lib/use-notifications";
 
@@ -13,8 +13,6 @@ interface NotificationSettingsProps {
   requestPermission: () => Promise<boolean>;
   updatePreference: (type: NotificationType, value: boolean) => void;
   webPushSubscribed?: boolean;
-  testAllNotifications?: () => Promise<{ type: string; local: boolean; server: boolean }[]>;
-  testDelayedNotification?: (delayMs?: number) => Promise<{ type: string; server: boolean; delayMs: number; error?: string }[]>;
 }
 
 const notifItems: {
@@ -59,18 +57,9 @@ export function NotificationSettings({
   preferences,
   requestPermission,
   updatePreference,
-  testAllNotifications,
-  testDelayedNotification,
 }: NotificationSettingsProps) {
   const [mounted, setMounted] = useState(false);
   const [silentHours, setSilentHours] = useState(true);
-  const [testing, setTesting] = useState(false);
-  const [testResults, setTestResults] = useState<{ type: string; local: boolean; server: boolean }[] | null>(null);
-  const [delayedResults, setDelayedResults] = useState<{ type: string; server: boolean; delayMs: number; error?: string }[] | null>(null);
-  const [delayedSending, setDelayedSending] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
   // Load silent hours preference from localStorage on mount
   useEffect(() => {
     setMounted(true);
@@ -78,26 +67,11 @@ export function NotificationSettings({
     if (saved !== null) {
       setSilentHours(JSON.parse(saved));
     }
-    return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
   }, []);
 
   if (!mounted) return null;
 
   const needsPermission = permission === "default" || permission === "loading";
-
-  const handleTestAll = async () => {
-    if (!testAllNotifications || testing) return;
-    setTesting(true);
-    setTestResults(null);
-    try {
-      const results = await testAllNotifications();
-      setTestResults(results);
-    } finally {
-      setTesting(false);
-    }
-  };
 
   const toggleSilentHours = () => {
     setSilentHours((prev) => {
@@ -105,35 +79,6 @@ export function NotificationSettings({
       localStorage.setItem("chef-cupid-silent-hours", JSON.stringify(newVal));
       return newVal;
     });
-  };
-
-  const handleDelayedTest = async () => {
-    if (!testDelayedNotification || delayedSending) return;
-    setDelayedSending(true);
-    setDelayedResults(null);
-
-    // Start countdown from 7 seconds
-    setCountdown(7);
-    countdownRef.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev === null || prev <= 1) {
-          if (countdownRef.current) clearInterval(countdownRef.current);
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    try {
-      const results = await testDelayedNotification(7000);
-      setDelayedResults(results);
-    } finally {
-      setDelayedSending(false);
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current);
-        countdownRef.current = null;
-      }
-    }
   };
 
   return (
@@ -254,99 +199,7 @@ export function NotificationSettings({
                   </div>
                 </button>
               );
-            })}              {/* Test All Notifications Button */}
-            <div className="pt-1 space-y-2">
-              <Button
-                onClick={handleTestAll}
-                disabled={testing}
-                size="sm"
-                variant="outline"
-                className="w-full gap-2 rounded-xl border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200"
-              >
-                {testing ? (
-                  <>
-                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-purple-400 border-t-transparent" />
-                    Sending All 4...
-                  </>
-                ) : (
-                  <>
-                    <Bell className="h-4 w-4" />
-                    Test All Notifications 🔔
-                  </>
-                )}
-              </Button>
-
-              {/* Test Results */}
-              {testResults && (
-                <div className="rounded-xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200/50 dark:border-gray-800/30 p-2.5 space-y-1">
-                  <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Results</p>
-                  {testResults.map((r) => (
-                    <div key={r.type} className="flex items-center justify-between text-xs">
-                      <span className="capitalize">{r.type}</span>
-                      <div className="flex items-center gap-2">
-                        <span className={r.local ? "text-green-500" : "text-red-500"}>
-                          {r.local ? "✓ Local" : "✗ Local"}
-                        </span>
-                        <span className={r.server ? "text-green-500" : "text-red-500"}>
-                          {r.server ? "✓ Server" : "✗ Server"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Delayed Background Test Button */}
-              <Button
-                onClick={handleDelayedTest}
-                disabled={delayedSending}
-                size="sm"
-                variant="outline"
-                className="w-full gap-2 rounded-xl border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all duration-200"
-              >
-                {delayedSending ? (
-                  <>
-                    <span className="inline-flex h-4 w-4 items-center justify-center">
-                      {countdown !== null && (
-                        <span className="text-xs font-bold tabular-nums">{countdown}s</span>
-                      )}
-                    </span>
-                    Closing app in {countdown ?? "..."}s...
-                  </>
-                ) : (
-                  <>
-                    <Clock className="h-4 w-4" />
-                    Test 7s Delayed ⏰
-                  </>
-                )}
-              </Button>
-
-              {/* Delayed Results Table */}
-              {delayedResults && (
-                <div className={cn(
-                  "rounded-xl border p-2.5",
-                  delayedResults.some((r) => !r.server)
-                    ? "bg-red-50 dark:bg-red-900/10 border-red-200/50 dark:border-red-800/30"
-                    : "bg-gray-50 dark:bg-gray-900/20 border-gray-200/50 dark:border-gray-800/30"
-                )}>
-                  <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                    Background Delivery ({delayedResults[0]?.delayMs ?? 7000}ms)
-                  </p>
-                  {delayedResults.map((r) => (
-                    <div key={r.type} className="flex items-center justify-between text-xs py-0.5">
-                      <span className="capitalize">{r.type}</span>
-                      <span className={r.server ? "text-green-500" : "text-red-500"}>
-                        {r.server ? "✓ Server Sent" : r.error ? `✗ ${r.error}` : "✗ Failed"}
-                      </span>
-                    </div>
-                  ))}
-                  <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
-                    ✓ Server push completed! If you closed the app within {Math.round((delayedResults[0]?.delayMs ?? 7000) / 1000)}s, all sent notifications should appear on your phone 💪
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+            })}            </div>
         )}
 
         <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground/60 pt-2 text-center leading-relaxed">
