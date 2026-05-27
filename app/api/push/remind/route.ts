@@ -154,6 +154,78 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { type, delay } = body;
 
+    const db = prisma;
+    if (!db) throw new Error("Database not available");
+
+    // ── DELAYED / BATCHED MODE ─────────────────────────────
+    // When delay is set, we accept either a single `type` or a `types[]` array.
+    // This lets the "Test 7s Delayed" button send all 4 types in ONE request.
+    if (typeof delay === "number" && delay > 0) {
+      const delayMs = Math.min(delay, 25000);
+
+      // Determine which types to send:
+      let typesToSend: ReminderType[];
+      if (body.types && Array.isArray(body.types)) {
+        typesToSend = body.types.filter((t: string) =>
+          VALID_TYPES.includes(t as ReminderType)
+        );
+      } else if (type && VALID_TYPES.includes(type)) {
+        typesToSend = [type as ReminderType];
+      } else {
+        return new Response(
+          JSON.stringify({ error: "No valid reminder type(s) provided" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      if (typesToSend.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "No valid reminder types provided" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get the push subscription
+      const subToUse = await getPushSubscription(body, session.user.id);
+      if (!subToUse) {
+        return new Response(
+          JSON.stringify({ error: "No push subscription found. Enable notifications first." }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // IMPORTANT: We AWAIT the timeout before responding so that Vercel's
+      // serverless function stays alive. If we responded immediately, Vercel
+      // would freeze the function and the setTimeout callback would never fire.
+      const results: { type: string; success: boolean }[] = [];
+
+      // Wait for the initial delay (allows user to close the app)
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+
+      // Send each type with 1s stagger to avoid overwhelming the push service
+      for (let i = 0; i < typesToSend.length; i++) {
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        try {
+          const sent = await sendReminderPush(subToUse, typesToSend[i]);
+          results.push({ type: typesToSend[i], success: sent });
+        } catch (e) {
+          console.error(`Delayed push failed for ${typesToSend[i]}:`, e);
+          results.push({ type: typesToSend[i], success: false });
+        }
+      }
+
+      return Response.json({
+        success: true,
+        delayed: delayMs,
+        results,
+        message: `Sent ${results.filter(r => r.success).length}/${results.length} notifications after ${delayMs}ms delay`,
+      });
+    }
+
+    // ── NORMAL IMMEDIATE MODE ─────────────────────────────
+    // No delay — validate a single type and send immediately
     if (!type || !VALID_TYPES.includes(type)) {
       return new Response(
         JSON.stringify({ error: "Invalid reminder type" }),
@@ -161,12 +233,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const db = prisma;
-    if (!db) throw new Error("Database not available");
-
     // Get the push subscription
     const subToUse = await getPushSubscription(body, session.user.id);
-
     if (!subToUse) {
       return new Response(
         JSON.stringify({ error: "No push subscription found. Enable notifications first." }),
@@ -174,27 +242,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // If delay requested, wait before sending (tests background delivery)
-    if (typeof delay === "number" && delay > 0) {
-      // Fire the delayed push in background — respond immediately
-      const delayMs = Math.min(delay, 25000); // Cap at 25s to stay within maxDuration
-      setTimeout(async () => {
-        try {
-          await sendReminderPush(subToUse, type as ReminderType);
-        } catch (e) {
-          console.error("Delayed push failed:", e);
-        }
-      }, delayMs);
-
-      return Response.json({
-        success: true,
-        type,
-        delayed: delayMs,
-        message: `Notification scheduled in ${delayMs}ms`,
-      });
-    }
-
-    // Normal immediate push
     const sent = await sendReminderPush(subToUse, type as ReminderType);
 
     if (sent) {
@@ -245,39 +292,92 @@ export async function GET(req: Request) {
     if (isCron) {
       // ─── CRON JOB MODE ───────────────────────────
       // Loop through all users with push subscriptions
-      // and send due reminders based on current time
+      // and send due reminders based on current time,
+      // respecting each user's notification preferences
+      // and avoiding duplicate sends within the same hour.
       const allUsers = await db.user.findMany({
-        select: { id: true, pushSubscription: true },
+        select: { id: true, pushSubscription: true, notificationPrefs: true, lastReminderSent: true },
       });
       // Only include users with a valid push subscription
       const users = allUsers.filter(
-        (u): u is { id: string; pushSubscription: object } =>
+        (u): u is typeof u & { pushSubscription: object } =>
           u.pushSubscription !== null && typeof u.pushSubscription === "object"
       );
 
-      const hour = new Date().getHours();
-      const results: { userId: string; type: string; success: boolean }[] = [];
+      const now = new Date();
+      const hour = now.getHours();
+      const minute = now.getMinutes();
+      const results: { userId: string; type: string; success: boolean; skipped?: string }[] = [];
 
       for (const user of users) {
+        // Parse user preferences (default: all enabled)
+        const prefs = (user.notificationPrefs as Record<string, boolean> | null) ?? {
+          water: true, meal: true, love: true, mood: true,
+        };
+        // Parse last-sent tracking (default: empty)
+        const lastSent = (user.lastReminderSent as Record<string, string> | null) ?? {};
+
         for (const reminderType of VALID_TYPES) {
           const config = REMINDER_CONFIG[reminderType];
-          // Only send if current hour matches reminder schedule
-          if (config.hours.includes(hour) && user.pushSubscription) {
-            const success = await sendReminderPush(
-              user.pushSubscription,
-              reminderType
-            );
+
+          // ── Check 1: Is this reminder due at the current hour?
+          if (!config.hours.includes(hour)) continue;
+
+          // ── Check 2: Does the user want this reminder type?
+          if (!prefs[reminderType]) {
+            results.push({ userId: user.id, type: reminderType, success: false, skipped: "disabled by user" });
+            continue;
+          }
+
+          // ── Check 3: Already sent in this hour? (dedup)
+          const lastSentStr = lastSent[reminderType];
+          if (lastSentStr) {
+            const lastSentDate = new Date(lastSentStr);
+            // If last sent within the same calendar hour (and same day), skip
+            if (
+              lastSentDate.getHours() === hour &&
+              lastSentDate.getDate() === now.getDate() &&
+              lastSentDate.getMonth() === now.getMonth() &&
+              lastSentDate.getFullYear() === now.getFullYear()
+            ) {
+              results.push({ userId: user.id, type: reminderType, success: false, skipped: "already sent this hour" });
+              continue;
+            }
+          }
+
+          // ── Send the push!
+          if (user.pushSubscription) {
+            const success = await sendReminderPush(user.pushSubscription, reminderType);
+            if (success) {
+              // Record the send time for dedup
+              lastSent[reminderType] = now.toISOString();
+            }
             results.push({ userId: user.id, type: reminderType, success });
           }
         }
+
+        // Persist updated lastReminderSent for this user
+        await db.user.update({
+          where: { id: user.id },
+          data: { lastReminderSent: lastSent },
+        }).catch((e) => {
+          console.error(`Failed to update lastReminderSent for user ${user.id}:`, e);
+        });
       }
+
+      const sentCount = results.filter((r) => r.success).length;
+      const skippedCount = results.filter((r) => r.skipped).length;
 
       return Response.json({
         success: true,
         mode: "cron",
         hour,
-        remindersSent: results.filter((r) => r.success).length,
+        minute,
+        totalUsers: users.length,
+        remindersSent: sentCount,
+        remindersSkipped: skippedCount,
         results,
+        message: `Sent ${sentCount} reminders, skipped ${skippedCount} (${users.length} users with subscriptions)`,
       });
     }
 

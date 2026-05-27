@@ -21,6 +21,10 @@ model User {
   partnerCode     String?   @unique
   // Web Push subscription JSON
   pushSubscription Json?
+  // Notification preferences: { water: true, meal: true, love: true, mood: false }
+  notificationPrefs Json?
+  // Last reminder sent timestamps: { "water": "2024-01-01T10:00:00Z", ... }
+  lastReminderSent Json?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

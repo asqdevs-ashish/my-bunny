@@ -17,6 +17,10 @@ const PUSH_VARS = [
   "VAPID_PRIVATE_KEY",
 ] as const;
 
+const CRON_VARS = [
+  "CRON_SECRET",
+] as const;
+
 const AUTH_VARS = [
   "MY_EMAIL",
   "MY_PASSWORD",
@@ -62,6 +66,12 @@ export function checkEnv(): EnvCheckResult[] {
   for (const v of PUSH_VARS) {
     if (!process.env[v]) {
       results.push({ var: v, status: "optional", note: "Push notifications will be disabled" });
+    }
+  }
+
+  for (const v of CRON_VARS) {
+    if (!process.env[v]) {
+      results.push({ var: v, status: "optional", note: "Cron job (cron-job.org) will not work — notifications won't arrive when app is closed" });
     }
   }
 

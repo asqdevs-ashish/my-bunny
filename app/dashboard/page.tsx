@@ -14,6 +14,7 @@ import { NotificationSettingsWrapper } from "@/components/notification-settings-
 import { PartnerOverview } from "@/components/partner-overview";
 import { MemoryScrapbook } from "@/components/memory-scrapbook";
 import { SecretNoteExchange } from "@/components/secret-note-exchange";
+import { SystemStatus } from "@/components/system-status";
 import {
   Card,
   CardContent,
@@ -76,6 +77,11 @@ export default async function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* System Status Terminal */}
+        <div className="animate-slide-up" style={{ animationDelay: "0.05s" } as React.CSSProperties}>
+          <SystemStatus />
         </div>
 
         {/* Widget Grid */}

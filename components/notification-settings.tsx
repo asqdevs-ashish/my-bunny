@@ -336,12 +336,12 @@ export function NotificationSettings({
                     <div key={r.type} className="flex items-center justify-between text-xs py-0.5">
                       <span className="capitalize">{r.type}</span>
                       <span className={r.server ? "text-green-500" : "text-red-500"}>
-                        {r.server ? "✓ Server Queued" : r.error ? `✗ ${r.error}` : "✗ Failed"}
+                        {r.server ? "✓ Server Sent" : r.error ? `✗ ${r.error}` : "✗ Failed"}
                       </span>
                     </div>
                   ))}
                   <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
-                    Close the app now — notifications will arrive in ~{Math.round((delayedResults[0]?.delayMs ?? 7000) / 1000)}s via server push 💪
+                    ✓ Server push completed! If you closed the app within {Math.round((delayedResults[0]?.delayMs ?? 7000) / 1000)}s, all sent notifications should appear on your phone 💪
                   </p>
                 </div>
               )}

@@ -85,23 +85,37 @@ async function getOrCreatePushSubscription(): Promise<PushSubscriptionJSON | und
   }
 }
 
-async function sendServerPush(type: string, delay?: number): Promise<{ ok: boolean; error?: string }> {
+async function sendServerPush(
+  type: string | string[],
+  delay?: number
+): Promise<{ ok: boolean; error?: string; results?: { type: string; success: boolean }[] }> {
   try {
     // Get (or create) the browser's push subscription to send along
     const subscription = await getOrCreatePushSubscription();
 
+    const body: Record<string, unknown> = { subscription };
+    if (Array.isArray(type)) {
+      body.types = type;
+    } else {
+      body.type = type;
+    }
+    if (delay) {
+      body.delay = delay;
+    }
+
     const res = await fetch("/api/push/remind", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, subscription, ...(delay ? { delay } : {}) }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      return { ok: false, error: body?.error || `HTTP ${res.status}` };
+      const b = await res.json().catch(() => ({}));
+      return { ok: false, error: b?.error || `HTTP ${res.status}` };
     }
 
-    return { ok: true };
+    const data = await res.json();
+    return { ok: true, results: data.results };
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Network error";
     console.warn("Server push failed (background notification may not arrive):", msg);
@@ -194,6 +208,40 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+/**
+ * Sync notification preferences to the server so the cron job
+ * knows which reminder types to send.
+ */
+async function syncPreferencesToServer(prefs: NotificationPreferences): Promise<boolean> {
+  try {
+    const res = await fetch("/api/push/preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ preferences: prefs }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Load notification preferences from the server.
+ * Falls back to localStorage if server is unavailable.
+ */
+async function loadPreferencesFromServer(): Promise<NotificationPreferences | null> {
+  try {
+    const res = await fetch("/api/push/preferences");
+    if (res.ok) {
+      const data = await res.json();
+      return data.preferences as NotificationPreferences;
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // HOOK
 // ═══════════════════════════════════════════════════════════════
@@ -204,17 +252,36 @@ export function useNotifications() {
   const [swRegistered, setSwRegistered] = useState(false);
   const [webPushSubscribed, setWebPushSubscribed] = useState(false);
   const intervalsRef = useRef<ReturnType<typeof setInterval>[]>([]);
+  const prefsLoadedRef = useRef(false);
 
-  // Load preferences from localStorage
+  // Load preferences — first from server, fallback to localStorage
   useEffect(() => {
-    const saved = localStorage.getItem(PREFS_KEY);
-    if (saved) {
-      try {
-        setPreferences({ ...DEFAULT_PREFERENCES, ...JSON.parse(saved) });
-      } catch {
-        // use defaults
+    if (prefsLoadedRef.current) return;
+    prefsLoadedRef.current = true;
+
+    (async () => {
+      // Try server first (gives us prefs synced from another device/session)
+      const serverPrefs = await loadPreferencesFromServer();
+      if (serverPrefs) {
+        setPreferences(serverPrefs);
+        // Sync to localStorage for offline use
+        localStorage.setItem(PREFS_KEY, JSON.stringify(serverPrefs));
+        return;
       }
-    }
+
+      // Fallback to localStorage
+      const saved = localStorage.getItem(PREFS_KEY);
+      if (saved) {
+        try {
+          const parsed = { ...DEFAULT_PREFERENCES, ...JSON.parse(saved) };
+          setPreferences(parsed);
+          // Sync local prefs up to server so cron can use them
+          void syncPreferencesToServer(parsed);
+        } catch {
+          // use defaults
+        }
+      }
+    })();
   }, []);
 
   // Check permission on mount
@@ -259,6 +326,9 @@ export function useNotifications() {
       const newPrefs = { ...preferences, [type]: value };
       setPreferences(newPrefs);
       localStorage.setItem(PREFS_KEY, JSON.stringify(newPrefs));
+
+      // Sync to server so cron job respects user preferences
+      void syncPreferencesToServer(newPrefs);
 
       // If user disables all notifications, unsubscribe from web push
       const anyEnabled = Object.values(newPrefs).some(Boolean);
@@ -433,21 +503,31 @@ export function useNotifications() {
 
   /**
    * Test delayed notifications — sends ALL 4 types from the server after `delayMs`.
+   * Uses a SINGLE API call to send all types, the server awaits the delay
+   * before responding, so Vercel keeps the function alive.
+   *
    * Close the app within the delay window to verify background delivery works!
-   * Each type is sent with a small stagger (300ms) to avoid overwhelming the server.
    */
   const testDelayedNotification = useCallback(async (delayMs: number = 7000) => {
     const types: NotificationType[] = ["water", "meal", "love", "mood"];
-    const results: { type: string; server: boolean; delayMs: number; error?: string }[] = [];
+    const result = await sendServerPush(types, delayMs);
 
-    for (const type of types) {
-      const result = await sendServerPush(type, delayMs);
-      results.push({ type, server: result.ok, delayMs, error: result.error });
-      // Small stagger between requests so server timers don't all fire at once
-      await new Promise((r) => setTimeout(r, 300));
+    if (result.ok && result.results) {
+      return result.results.map(r => ({
+        type: r.type,
+        server: r.success,
+        delayMs,
+        error: r.success ? undefined : "Push send failed on server",
+      }));
     }
 
-    return results;
+    // Entire request failed
+    return types.map(type => ({
+      type,
+      server: false,
+      delayMs,
+      error: result.error || "Request failed — check console for details",
+    }));
   }, []);
 
   /**
