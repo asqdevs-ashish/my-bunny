@@ -432,12 +432,22 @@ export function useNotifications() {
   }, [showNotification]);
 
   /**
-   * Test a delayed notification — sends a push from the server after `delayMs`.
+   * Test delayed notifications — sends ALL 4 types from the server after `delayMs`.
    * Close the app within the delay window to verify background delivery works!
+   * Each type is sent with a small stagger (300ms) to avoid overwhelming the server.
    */
   const testDelayedNotification = useCallback(async (delayMs: number = 7000) => {
-    const result = await sendServerPush("water", delayMs);
-    return { type: "water", server: result.ok, delayMs, error: result.error };
+    const types: NotificationType[] = ["water", "meal", "love", "mood"];
+    const results: { type: string; server: boolean; delayMs: number; error?: string }[] = [];
+
+    for (const type of types) {
+      const result = await sendServerPush(type, delayMs);
+      results.push({ type, server: result.ok, delayMs, error: result.error });
+      // Small stagger between requests so server timers don't all fire at once
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    return results;
   }, []);
 
   /**

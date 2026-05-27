@@ -14,7 +14,7 @@ interface NotificationSettingsProps {
   updatePreference: (type: NotificationType, value: boolean) => void;
   webPushSubscribed?: boolean;
   testAllNotifications?: () => Promise<{ type: string; local: boolean; server: boolean }[]>;
-  testDelayedNotification?: (delayMs?: number) => Promise<{ type: string; server: boolean; delayMs: number; error?: string }>;
+  testDelayedNotification?: (delayMs?: number) => Promise<{ type: string; server: boolean; delayMs: number; error?: string }[]>;
 }
 
 const notifItems: {
@@ -66,13 +66,18 @@ export function NotificationSettings({
   const [silentHours, setSilentHours] = useState(true);
   const [testing, setTesting] = useState(false);
   const [testResults, setTestResults] = useState<{ type: string; local: boolean; server: boolean }[] | null>(null);
-  const [delayedResult, setDelayedResult] = useState<{ type: string; server: boolean; delayMs: number; error?: string } | null>(null);
+  const [delayedResults, setDelayedResults] = useState<{ type: string; server: boolean; delayMs: number; error?: string }[] | null>(null);
   const [delayedSending, setDelayedSending] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Load silent hours preference from localStorage on mount
   useEffect(() => {
     setMounted(true);
+    const saved = localStorage.getItem("chef-cupid-silent-hours");
+    if (saved !== null) {
+      setSilentHours(JSON.parse(saved));
+    }
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
@@ -94,10 +99,18 @@ export function NotificationSettings({
     }
   };
 
+  const toggleSilentHours = () => {
+    setSilentHours((prev) => {
+      const newVal = !prev;
+      localStorage.setItem("chef-cupid-silent-hours", JSON.stringify(newVal));
+      return newVal;
+    });
+  };
+
   const handleDelayedTest = async () => {
     if (!testDelayedNotification || delayedSending) return;
     setDelayedSending(true);
-    setDelayedResult(null);
+    setDelayedResults(null);
 
     // Start countdown from 7 seconds
     setCountdown(7);
@@ -112,8 +125,8 @@ export function NotificationSettings({
     }, 1000);
 
     try {
-      const result = await testDelayedNotification(7000);
-      setDelayedResult(result);
+      const results = await testDelayedNotification(7000);
+      setDelayedResults(results);
     } finally {
       setDelayedSending(false);
       if (countdownRef.current) {
@@ -169,7 +182,7 @@ export function NotificationSettings({
 
             {/* Silent Hours Toggle */}
             <button
-              onClick={() => setSilentHours(!silentHours)}
+              onClick={toggleSilentHours}
               className={cn(
                 "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-300 active:scale-[0.98]",
                 silentHours 
@@ -308,33 +321,28 @@ export function NotificationSettings({
                 )}
               </Button>
 
-              {/* Delayed Result */}
-              {delayedResult && (
+              {/* Delayed Results Table */}
+              {delayedResults && (
                 <div className={cn(
                   "rounded-xl border p-2.5",
-                  delayedResult.server 
-                    ? "bg-gray-50 dark:bg-gray-900/20 border-gray-200/50 dark:border-gray-800/30" 
-                    : "bg-red-50 dark:bg-red-900/10 border-red-200/50 dark:border-red-800/30"
+                  delayedResults.some((r) => !r.server)
+                    ? "bg-red-50 dark:bg-red-900/10 border-red-200/50 dark:border-red-800/30"
+                    : "bg-gray-50 dark:bg-gray-900/20 border-gray-200/50 dark:border-gray-800/30"
                 )}>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="capitalize">Delayed ({delayedResult.delayMs}ms)</span>
-                    <span className={delayedResult.server ? "text-green-500" : "text-red-500"}>
-                      {delayedResult.server ? "✓ Server Queued" : "✗ Failed"}
-                    </span>
-                  </div>
-                  {delayedResult.server ? (
-                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-                      Notification scheduled! Close the app now — it will arrive in ~{Math.round(delayedResult.delayMs / 1000)}s via server push 💪
-                    </p>
-                  ) : delayedResult.error ? (
-                    <p className="text-[10px] text-red-600 dark:text-red-400 mt-1 leading-relaxed">
-                      ❌ {delayedResult.error}
-                    </p>
-                  ) : (
-                    <p className="text-[10px] text-red-600 dark:text-red-400 mt-1 leading-relaxed">
-                      ❌ Server request failed. Check console for details.
-                    </p>
-                  )}
+                  <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                    Background Delivery ({delayedResults[0]?.delayMs ?? 7000}ms)
+                  </p>
+                  {delayedResults.map((r) => (
+                    <div key={r.type} className="flex items-center justify-between text-xs py-0.5">
+                      <span className="capitalize">{r.type}</span>
+                      <span className={r.server ? "text-green-500" : "text-red-500"}>
+                        {r.server ? "✓ Server Queued" : r.error ? `✗ ${r.error}` : "✗ Failed"}
+                      </span>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
+                    Close the app now — notifications will arrive in ~{Math.round((delayedResults[0]?.delayMs ?? 7000) / 1000)}s via server push 💪
+                  </p>
                 </div>
               )}
             </div>

@@ -38,18 +38,22 @@ export async function sendPushNotification(
   if (!webPush) return false;
 
   try {
+    // Always use "Suar's Care 💕" as the notification title so that
+    // on Android (even if PWA not installed), the notification shows the
+    // app name prominently instead of the browser name.
+    // The original title (e.g., "💧 Water Reminder") is shown in the body.
     await webPush.sendNotification(
       subscription as webpush.PushSubscription,
       JSON.stringify({
-        title: payload.title,
-        body: payload.body,
+        title: "Suar's Care 💕",
+        body: `${payload.title} — ${payload.body}`,
         url: payload.url || "/dashboard",
         tag: payload.tag || "partner-message",
         icon: "/icon-192.jpeg",
         badge: "/icon-192.jpeg",
         vibrate: [100, 50, 100],
         actions: [
-          { action: "open", title: "Open Chat 💕" },
+          { action: "open", title: "Open App 💕" },
         ],
       })
     );

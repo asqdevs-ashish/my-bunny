@@ -11,7 +11,7 @@ interface NotificationContextType {
   showNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
   testNotification: () => Promise<boolean>;
   testAllNotifications: () => Promise<{ type: string; local: boolean; server: boolean }[]>;
-  testDelayedNotification: (delayMs?: number) => Promise<{ type: string; server: boolean; delayMs: number; error?: string }>;
+  testDelayedNotification: (delayMs?: number) => Promise<{ type: string; server: boolean; delayMs: number; error?: string }[]>;
   webPushSubscribed: boolean;
 }
 

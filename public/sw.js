@@ -28,9 +28,11 @@ self.addEventListener("push", (event) => {
   if (event.data) {
     try {
       const data = event.data.json();
+      // Use a clean notification icon from the site's available assets
+      const iconUrl = data.icon || "/icon-192.jpeg";
       const options = {
         body: data.body || "Hey baby! 💕",
-        icon: data.icon || "/icon-192.jpeg",
+        icon: iconUrl,
         badge: "/icon-192.jpeg",
         vibrate: data.vibrate || [100, 50, 100],
         data: {
@@ -39,12 +41,12 @@ self.addEventListener("push", (event) => {
         },
         actions: data.actions || [
           { action: "open", title: "Open App 💕" },
-          { action: "reply", title: "Reply 💬" },
         ],
         tag: data.tag || "chef-cupid",
         requireInteraction: true, // Keep notification visible until user interacts
       };
-      event.waitUntil(self.registration.showNotification(data.title || "Suar's Care", options));
+      // Title from push data (now "Suar's Care 💕" from web-push.ts)
+      event.waitUntil(self.registration.showNotification(data.title || "Suar's Care 💕", options));
     } catch {
       // If not JSON, show raw text
       const options = {
@@ -53,7 +55,7 @@ self.addEventListener("push", (event) => {
         badge: "/icon-192.jpeg",
         vibrate: [100, 50, 100],
       };
-      event.waitUntil(self.registration.showNotification("Suar's Care", options));
+      event.waitUntil(self.registration.showNotification("Suar's Care 💕", options));
     }
   }
 });
