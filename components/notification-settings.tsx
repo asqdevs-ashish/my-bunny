@@ -14,7 +14,7 @@ interface NotificationSettingsProps {
   updatePreference: (type: NotificationType, value: boolean) => void;
   webPushSubscribed?: boolean;
   testAllNotifications?: () => Promise<{ type: string; local: boolean; server: boolean }[]>;
-  testDelayedNotification?: (delayMs?: number) => Promise<{ type: string; server: boolean; delayMs: number }>;
+  testDelayedNotification?: (delayMs?: number) => Promise<{ type: string; server: boolean; delayMs: number; error?: string }>;
 }
 
 const notifItems: {
@@ -66,7 +66,7 @@ export function NotificationSettings({
   const [silentHours, setSilentHours] = useState(true);
   const [testing, setTesting] = useState(false);
   const [testResults, setTestResults] = useState<{ type: string; local: boolean; server: boolean }[] | null>(null);
-  const [delayedResult, setDelayedResult] = useState<{ type: string; server: boolean; delayMs: number } | null>(null);
+  const [delayedResult, setDelayedResult] = useState<{ type: string; server: boolean; delayMs: number; error?: string } | null>(null);
   const [delayedSending, setDelayedSending] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -310,16 +310,29 @@ export function NotificationSettings({
 
               {/* Delayed Result */}
               {delayedResult && (
-                <div className="rounded-xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200/50 dark:border-gray-800/30 p-2.5">
+                <div className={cn(
+                  "rounded-xl border p-2.5",
+                  delayedResult.server 
+                    ? "bg-gray-50 dark:bg-gray-900/20 border-gray-200/50 dark:border-gray-800/30" 
+                    : "bg-red-50 dark:bg-red-900/10 border-red-200/50 dark:border-red-800/30"
+                )}>
                   <div className="flex items-center justify-between text-xs">
                     <span className="capitalize">Delayed ({delayedResult.delayMs}ms)</span>
                     <span className={delayedResult.server ? "text-green-500" : "text-red-500"}>
                       {delayedResult.server ? "✓ Server Queued" : "✗ Failed"}
                     </span>
                   </div>
-                  {delayedResult.server && (
+                  {delayedResult.server ? (
                     <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
                       Notification scheduled! Close the app now — it will arrive in ~{Math.round(delayedResult.delayMs / 1000)}s via server push 💪
+                    </p>
+                  ) : delayedResult.error ? (
+                    <p className="text-[10px] text-red-600 dark:text-red-400 mt-1 leading-relaxed">
+                      ❌ {delayedResult.error}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-red-600 dark:text-red-400 mt-1 leading-relaxed">
+                      ❌ Server request failed. Check console for details.
                     </p>
                   )}
                 </div>

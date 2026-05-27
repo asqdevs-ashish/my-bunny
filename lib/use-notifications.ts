@@ -49,31 +49,63 @@ const WATER_NOTIFICATIONS = [
  * Also sends the browser's push subscription so the server can
  * save it on-the-fly if it wasn't previously stored in the DB.
  */
-async function sendServerPush(type: string, delay?: number): Promise<boolean> {
+/**
+ * Try to get an existing push subscription, or create one on the fly
+ * if none exists. Returns the subscription JSON, or undefined if unavailable.
+ */
+async function getOrCreatePushSubscription(): Promise<PushSubscriptionJSON | undefined> {
+  if (typeof window === "undefined") return;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+
   try {
-    // Get the browser's push subscription to send along
-    let subscription: PushSubscriptionJSON | undefined;
-    if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
-      try {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          subscription = sub.toJSON();
-        }
-      } catch {
-        // Ignore errors getting subscription
+    const reg = await navigator.serviceWorker.ready;
+
+    // Try existing subscription first
+    let sub = await reg.pushManager.getSubscription();
+
+    // If no subscription exists, try to create one on the fly
+    // This handles the case where the user granted permission but
+    // registerWebPush() failed (e.g., missing VAPID key at the time)
+    if (!sub) {
+      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (publicKey) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+        });
       }
     }
+
+    if (sub) {
+      return sub.toJSON();
+    }
+  } catch (e) {
+    console.warn("Could not get/create push subscription:", e);
+  }
+}
+
+async function sendServerPush(type: string, delay?: number): Promise<{ ok: boolean; error?: string }> {
+  try {
+    // Get (or create) the browser's push subscription to send along
+    const subscription = await getOrCreatePushSubscription();
 
     const res = await fetch("/api/push/remind", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, subscription, ...(delay ? { delay } : {}) }),
     });
-    return res.ok;
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { ok: false, error: body?.error || `HTTP ${res.status}` };
+    }
+
+    return { ok: true };
   } catch (error) {
-    console.warn("Server push failed (background notification may not arrive):", error);
-    return false;
+    const msg = error instanceof Error ? error.message : "Network error";
+    console.warn("Server push failed (background notification may not arrive):", msg);
+    return { ok: false, error: msg };
   }
 }
 
@@ -404,8 +436,8 @@ export function useNotifications() {
    * Close the app within the delay window to verify background delivery works!
    */
   const testDelayedNotification = useCallback(async (delayMs: number = 7000) => {
-    const server = await sendServerPush("water", delayMs);
-    return { type: "water", server, delayMs };
+    const result = await sendServerPush("water", delayMs);
+    return { type: "water", server: result.ok, delayMs, error: result.error };
   }, []);
 
   /**
@@ -425,8 +457,8 @@ export function useNotifications() {
     ) => {
       await new Promise((r) => setTimeout(r, delayMs));
       const local = await showNotification(title, body, tag);
-      const server = await sendServerPush(type);
-      results.push({ type, local, server });
+      const serverResult = await sendServerPush(type);
+      results.push({ type, local, server: serverResult.ok });
     };
 
     // 1. Water Reminder
