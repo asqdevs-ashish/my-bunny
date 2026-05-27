@@ -10,6 +10,7 @@ interface NotificationContextType {
   updatePreference: (type: NotificationType, value: boolean) => void;
   showNotification: (title: string, body: string, tag?: string) => Promise<boolean>;
   testNotification: () => Promise<boolean>;
+  testAllNotifications: () => Promise<{ type: string; local: boolean; server: boolean }[]>;
   webPushSubscribed: boolean;
 }
 

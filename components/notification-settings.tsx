@@ -13,6 +13,7 @@ interface NotificationSettingsProps {
   requestPermission: () => Promise<boolean>;
   updatePreference: (type: NotificationType, value: boolean) => void;
   webPushSubscribed?: boolean;
+  testAllNotifications?: () => Promise<{ type: string; local: boolean; server: boolean }[]>;
 }
 
 const notifItems: {
@@ -57,9 +58,12 @@ export function NotificationSettings({
   preferences,
   requestPermission,
   updatePreference,
+  testAllNotifications,
 }: NotificationSettingsProps) {
   const [mounted, setMounted] = useState(false);
   const [silentHours, setSilentHours] = useState(true);
+  const [testing, setTesting] = useState(false);
+  const [testResults, setTestResults] = useState<{ type: string; local: boolean; server: boolean }[] | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -68,6 +72,18 @@ export function NotificationSettings({
   if (!mounted) return null;
 
   const needsPermission = permission === "default" || permission === "loading";
+
+  const handleTestAll = async () => {
+    if (!testAllNotifications || testing) return;
+    setTesting(true);
+    setTestResults(null);
+    try {
+      const results = await testAllNotifications();
+      setTestResults(results);
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <Card className="relative overflow-hidden border-purple-100 dark:border-purple-900/20 shadow-md">
@@ -188,6 +204,49 @@ export function NotificationSettings({
                 </button>
               );
             })}
+
+            {/* Test All Notifications Button */}
+            <div className="pt-1">
+              <Button
+                onClick={handleTestAll}
+                disabled={testing}
+                size="sm"
+                variant="outline"
+                className="w-full gap-2 rounded-xl border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200"
+              >
+                {testing ? (
+                  <>
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-purple-400 border-t-transparent" />
+                    Sending All 4...
+                  </>
+                ) : (
+                  <>
+                    <Bell className="h-4 w-4" />
+                    Test All Notifications 🔔
+                  </>
+                )}
+              </Button>
+
+              {/* Test Results */}
+              {testResults && (
+                <div className="mt-2 rounded-xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200/50 dark:border-gray-800/30 p-2.5 space-y-1">
+                  <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Results</p>
+                  {testResults.map((r) => (
+                    <div key={r.type} className="flex items-center justify-between text-xs">
+                      <span className="capitalize">{r.type}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={r.local ? "text-green-500" : "text-red-500"}>
+                          {r.local ? "✓ Local" : "✗ Local"}
+                        </span>
+                        <span className={r.server ? "text-green-500" : "text-red-500"}>
+                          {r.server ? "✓ Server" : "✗ Server"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

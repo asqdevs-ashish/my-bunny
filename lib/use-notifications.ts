@@ -399,6 +399,74 @@ export function useNotifications() {
     return local;
   }, [showNotification]);
 
+  /**
+   * Send ALL 4 types of test notifications one by one.
+   * This lets you verify that every scheduled reminder works end-to-end.
+   */
+  const testAllNotifications = useCallback(async () => {
+    const results: { type: string; local: boolean; server: boolean }[] = [];
+
+    // Helper: send a notification with a small delay between each
+    const sendWithDelay = async (
+      type: NotificationType,
+      title: string,
+      body: string,
+      tag: string,
+      delayMs: number
+    ) => {
+      await new Promise((r) => setTimeout(r, delayMs));
+      const local = await showNotification(title, body, tag);
+      const server = await sendServerPush(type);
+      results.push({ type, local, server });
+    };
+
+    // 1. Water Reminder
+    await sendWithDelay(
+      "water",
+      "💧 Water Reminder",
+      "[TEST] Time to hydrate, baby! 💧",
+      "test-water",
+      0
+    );
+
+    // 2. Meal Time
+    await sendWithDelay(
+      "meal",
+      "🍽️ Time to Eat!",
+      "[TEST] Baby, it's time to eat! 🍽️",
+      "test-meal",
+      1500
+    );
+
+    // 3. Love Note
+    await sendWithDelay(
+      "love",
+      "💕 Love Note for You",
+      "[TEST] Hey baby! Just a reminder — you're amazing! 💕",
+      "test-love",
+      1500
+    );
+
+    // 4. Mood Check
+    await sendWithDelay(
+      "mood",
+      "🥰 Mood Check",
+      "[TEST] How are you feeling this afternoon, baby? Tap to tell me!",
+      "test-mood",
+      1500
+    );
+
+    // Show a summary notification after all 4
+    const allLocalOk = results.every((r) => r.local);
+    const allServerOk = results.every((r) => r.server);
+    const summaryBody = allLocalOk && allServerOk
+      ? "All 4 notifications sent successfully! ✅"
+      : `Local: ${results.filter((r) => r.local).length}/4, Server: ${results.filter((r) => r.server).length}/4`;
+    await showNotification("📋 Test Complete", summaryBody, "test-summary");
+
+    return results;
+  }, [showNotification]);
+
   return {
     permission,
     preferences,
@@ -406,6 +474,7 @@ export function useNotifications() {
     updatePreference,
     showNotification,
     testNotification,
+    testAllNotifications,
     webPushSubscribed,
   };
 }
