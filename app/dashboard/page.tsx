@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { Nav } from "@/components/nav";
 import { WaterTracker } from "@/components/water-tracker";
 import { MealLogger } from "@/components/meal-logger";
+import { LovePlant } from "@/components/love-plant";
 import { WeeklySummary } from "@/components/weekly-summary";
 import { FloatingChatButton } from "@/components/floating-chat-button";
 import { MoodSelector } from "@/components/mood-selector";
@@ -92,8 +93,13 @@ export default async function DashboardPage() {
           </div>
 
           {/* Meal Logger */}
-          <div className="animate-slide-up" style={{ animationDelay: "0.2s" } as React.CSSProperties}>
+          <div className="animate-slide-up" style={{ animationDelay: "0.17s" } as React.CSSProperties}>
             <MealLogger />
+          </div>
+
+          {/* Love Plant — spans 2 cols on desktop */}
+          <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.2s" } as React.CSSProperties}>
+            <LovePlant />
           </div>
 
           {/* Partner Update — full width */}

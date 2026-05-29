@@ -38,8 +38,132 @@ model User {
   memories         Memory[]      @relation("UserMemories")
   sentSecretNotes     SecretNote[] @relation("SentSecretNotes")
   receivedSecretNotes SecretNote[] @relation("ReceivedSecretNotes")
+  location            Location?
+  locationHistory     LocationHistory[]
+  geofenceZones       GeofenceZone[]
+  geofenceAlerts      GeofenceAlert[]
+  lovePlantsAsUser1   LovePlant[] @relation("LovePlantUser1")
+  lovePlantsAsUser2   LovePlant[] @relation("LovePlantUser2")
 
   @@map("users")
+}
+
+// ─── Love Plant (Co-op Health Quest) ────────────────────────────
+model LovePlant {
+  id        String   @id @default(cuid())
+  coupleKey String   @unique // e.g. "userAid_userBid" (sorted lexicographically)
+  user1Id   String
+  user1     User     @relation("LovePlantUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id   String
+  user2     User     @relation("LovePlantUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  achievements LovePlantAchievement[]
+  dailySnapshots LovePlantDailySnapshot[]
+
+  @@map("love_plants")
+}
+
+// ─── Love Plant Daily Snapshots (cached health history) ────────────
+model LovePlantDailySnapshot {
+  id        String   @id @default(cuid())
+  coupleKey String
+  lovePlant LovePlant @relation(fields: [coupleKey], references: [coupleKey], onDelete: Cascade)
+  date      DateTime   // midnight UTC of the snapshot day
+  health    Int        // 0-100 combined health score
+  user1Water Int @default(0)
+  user1Meals Int @default(0)
+  user2Water Int @default(0)
+  user2Meals Int @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([coupleKey, date])
+  @@index([coupleKey, date])
+  @@map("love_plant_daily_snapshots")
+}
+
+// ─── Love Plant Achievements ────────────────────────────────────
+model LovePlantAchievement {
+  id        String   @id @default(cuid())
+  coupleKey String
+  lovePlant LovePlant @relation(fields: [coupleKey], references: [coupleKey], onDelete: Cascade)
+  type      String   // "first_bloom" | "three_day_streak" | "seven_day_streak" | "perfect_week" | "water_warriors" | "meal_masters"
+  awardedAt DateTime @default(now())
+
+  @@unique([coupleKey, type])
+  @@index([coupleKey])
+  @@map("love_plant_achievements")
+}
+
+// ─── Live Location Tracking ────────────────────────────────────
+model Location {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  latitude  Float
+  longitude Float
+  accuracy  Float?       // meters
+  speed     Float?       // m/s
+  heading   Float?       // degrees
+  isSharing Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@map("locations")
+}
+
+// ─── Geofence Zones (Home, Office, etc.) ────────────────────────
+model GeofenceZone {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String   // "Home", "Office", "Gym"
+  latitude  Float
+  longitude Float
+  radius    Float    @default(200) // in meters
+  color     String   @default("#f43f5e")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  alerts GeofenceAlert[]
+
+  @@index([userId, enabled])
+  @@map("geofence_zones")
+}
+
+// ─── Geofence Alerts (entry/exit events) ───────────────────────
+model GeofenceAlert {
+  id            String   @id @default(cuid())
+  zoneId        String
+  zone          GeofenceZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  ownerId       String        // The user who OWNS the zone (gets notified)
+  owner         User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  partnerUserId String        // The user who entered/exited
+  eventType     String        // "ENTERED" | "EXITED"
+  latitude      Float
+  longitude     Float
+  createdAt     DateTime @default(now())
+
+  @@index([zoneId, partnerUserId, createdAt])
+  @@index([ownerId, createdAt])
+  @@map("geofence_alerts")
+}
+
+// ─── Location History (movement trail / timeline) ──────────────
+model LocationHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  latitude  Float
+  longitude Float
+  accuracy  Float?       // meters
+  speed     Float?       // m/s
+  heading   Float?       // degrees
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("location_history")
 }
 
 // ─── Memories ────────────────────────────────────────────────

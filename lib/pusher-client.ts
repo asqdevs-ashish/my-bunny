@@ -6,7 +6,7 @@ import PusherJS from "pusher-js";
 // Singleton pusher client across the app
 let pusherClient: PusherJS | null = null;
 
-function getPusherClient(): PusherJS | null {
+export function getPusherClient(): PusherJS | null {
   if (typeof window === "undefined") return null;
 
   if (!pusherClient) {

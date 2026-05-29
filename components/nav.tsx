@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Heart, MessageCircle, LogOut, User, Settings } from "lucide-react";
+import { Moon, Sun, Heart, MessageCircle, LogOut, User, Settings, MapPin, Sprout } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { useEffect, useState, useRef } from "react";
@@ -83,14 +83,21 @@ export function Nav() {
             </Link>
           )}
 
-          {/* Partner Chat Button */}
+          {/* Love Plant Button */}
+          <Link
+            href="/love-plant"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary/50 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all hover:scale-105 active:scale-95 border border-border/50"
+          >
+            <Sprout className="h-4.5 w-4.5" />
+          </Link>
+
+          {/* Live Location Button */}
           {partnerId && (
             <Link
-              href="/partner-chat"
-              className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-secondary/50 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all hover:scale-105 active:scale-95 border border-border/50"
+              href="/location"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary/50 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all hover:scale-105 active:scale-95 border border-border/50"
             >
-              <MessageCircle className="h-4.5 w-4.5" />
-              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
+              <MapPin className="h-4.5 w-4.5" />
             </Link>
           )}
 
@@ -119,6 +126,18 @@ export function Nav() {
                   <p className="text-xs font-semibold text-foreground truncate">{userName}</p>
                   <p className="text-[10px] text-muted-foreground truncate">{session?.user?.email}</p>
                 </div>
+
+                {/* Partner Chat Link */}
+                {partnerId && (
+                  <Link
+                    href="/partner-chat"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                  >
+                    <MessageCircle className="h-4 w-4 text-rose-500" />
+                    <span>Partner Chat</span>
+                  </Link>
+                )}
 
                 {/* Theme Toggle */}
                 <button

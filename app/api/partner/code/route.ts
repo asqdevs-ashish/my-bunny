@@ -76,6 +76,15 @@ export async function PUT(req: NextRequest) {
       data: { partnerId: currentUser.id, partnerSince: now, partnerCode: null },
     });
 
+    // Create LovePlant record for the couple (if not exists)
+    const [a, b] = [currentUser.id, partner.id].sort();
+    const coupleKey = `${a}_${b}`;
+    await db.lovePlant.upsert({
+      where: { coupleKey },
+      update: {},
+      create: { coupleKey, user1Id: a, user2Id: b },
+    }).catch((e) => console.error("Failed to create LovePlant:", e));
+
     return Response.json({
       success: true,
       partner: { id: partner.id, name: partner.name, email: partner.email },

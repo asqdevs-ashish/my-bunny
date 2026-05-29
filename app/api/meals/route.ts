@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveOrCreateCurrentUser } from "@/lib/current-user";
+import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
 
 export async function GET() {
   const session = await auth();
@@ -55,6 +56,17 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
       },
     });
+
+    // Trigger Love Plant update via Pusher (notify partner)
+    if (pusherServer && currentUser.partnerId) {
+      const channel = getPartnerChannel(currentUser.id, currentUser.partnerId);
+      await pusherServer
+        .trigger(channel, "love-plant-update", {
+          triggeredBy: currentUser.id,
+          timestamp: new Date().toISOString(),
+        })
+        .catch((err) => console.error("Pusher trigger (love-plant) failed:", err));
+    }
 
     return Response.json(meal, { status: 201 });
   } catch (error) {
