@@ -14,6 +14,7 @@ import { NotificationSettingsWrapper } from "@/components/notification-settings-
 import { PartnerOverview } from "@/components/partner-overview";
 import { MemoryScrapbook } from "@/components/memory-scrapbook";
 import { SecretNoteExchange } from "@/components/secret-note-exchange";
+import { Footer } from "@/components/footer";
 import {
   Card,
   CardContent,
@@ -78,52 +79,61 @@ export default async function DashboardPage() {
           </Card>
         </div>
 
-        {/* Widget Grid */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Row 1 - spanning full width on mobile */}
-          <div className="sm:col-span-2 lg:col-span-3 space-y-4 sm:space-y-6">
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
-              {/* Left Column */}
-              <div className="space-y-4 sm:space-y-6">
-                <div className="animate-slide-up" style={{ animationDelay: "0.1s" } as React.CSSProperties}>
-                  <MoodSelector />
-                </div>
-                <div className="animate-slide-up" style={{ animationDelay: "0.2s" } as React.CSSProperties}>
-                  <WaterTracker />
-                </div>
-              </div>
-
-              {/* Right Column */}
-              <div className="space-y-4 sm:space-y-6">
-                <div className="animate-slide-up" style={{ animationDelay: "0.15s" } as React.CSSProperties}>
-                  <MealLogger />
-                </div>
-                <div className="animate-slide-up" style={{ animationDelay: "0.25s" } as React.CSSProperties}>
-                  <LoveNotes />
-                </div>
-              </div>
-            </div>
+        {/* Widget Grid — single column on mobile, 3 columns on desktop */}
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+          {/* Mood Selector — spans 2 cols on desktop */}
+          <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.1s" } as React.CSSProperties}>
+            <MoodSelector />
           </div>
 
-          {/* Partner Overview — Full width card */}
-          <div className="sm:col-span-2 lg:col-span-3 animate-slide-up" style={{ animationDelay: "0.3s" } as React.CSSProperties}>
+          {/* Water Tracker */}
+          <div className="animate-slide-up" style={{ animationDelay: "0.15s" } as React.CSSProperties}>
+            <WaterTracker />
+          </div>
+
+          {/* Meal Logger */}
+          <div className="animate-slide-up" style={{ animationDelay: "0.2s" } as React.CSSProperties}>
+            <MealLogger />
+          </div>
+
+          {/* Partner Update — full width */}
+          <div className="animate-slide-up lg:col-span-3" style={{ animationDelay: "0.25s" } as React.CSSProperties}>
             <PartnerOverview />
           </div>
 
-          {/* Bottom Row - 3 columns on lg */}
-          <div className="animate-slide-up sm:col-span-2 lg:col-span-1 space-y-4 sm:space-y-6" style={{ animationDelay: "0.35s" } as React.CSSProperties}>
-            <WeeklySummary />
+          {/* Private Love Note */}
+          <div className="animate-slide-up" style={{ animationDelay: "0.3s" } as React.CSSProperties}>
             <SecretNoteExchange />
           </div>
-          <div className="animate-slide-up sm:col-span-2 lg:col-span-1 space-y-4 sm:space-y-6" style={{ animationDelay: "0.4s" } as React.CSSProperties}>
-            <NotificationSettingsWrapper />
+
+          {/* Memory Scrapbook */}
+          <div className="animate-slide-up" style={{ animationDelay: "0.35s" } as React.CSSProperties}>
             <MemoryScrapbook />
           </div>
+
+          {/* Love Note for You */}
+          <div className="animate-slide-up" style={{ animationDelay: "0.4s" } as React.CSSProperties}>
+            <LoveNotes />
+          </div>
+
+          {/* Weekly Summary */}
           <div className="animate-slide-up" style={{ animationDelay: "0.45s" } as React.CSSProperties}>
+            <WeeklySummary />
+          </div>
+
+          {/* Recipe Ideas */}
+          <div className="animate-slide-up" style={{ animationDelay: "0.5s" } as React.CSSProperties}>
             <MoodRecipes />
+          </div>
+
+          {/* App Reminder — full width */}
+          <div className="animate-slide-up lg:col-span-3" style={{ animationDelay: "0.55s" } as React.CSSProperties}>
+            <NotificationSettingsWrapper />
           </div>
         </div>
       </main>
+
+      {/* Footer */}
 
       {/* Floating Chat Button */}
       <FloatingChatButton />
