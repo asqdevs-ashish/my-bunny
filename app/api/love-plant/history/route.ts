@@ -177,7 +177,7 @@ export async function GET() {
 
     return Response.json({
       history,
-      partnerName: partner.name || "Partner",
+      partnerName: partner.name || "Bachha",
       myName: user.name || "You",
     });
   } catch (error) {

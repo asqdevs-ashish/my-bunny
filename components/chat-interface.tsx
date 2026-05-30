@@ -397,7 +397,7 @@ export function ChatInterface() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="relative flex h-[calc(100dvh-4rem)] sm:h-[calc(100vh-8rem)] min-h-[400px] flex-col overflow-hidden rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card shadow-sm sm:shadow-md">
+    <div className="relative flex flex-1 min-h-[400px] sm:flex-none sm:h-[calc(100vh-8rem)] sm:min-h-[400px] flex-col overflow-hidden rounded-none sm:rounded-2xl border-0 sm:border border-border bg-card shadow-sm sm:shadow-md">
       {/* ── Gradient top accent ── */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-400 via-amber-400 to-rose-400 dark:from-amber-500 dark:via-yellow-500 dark:to-amber-500" />
 

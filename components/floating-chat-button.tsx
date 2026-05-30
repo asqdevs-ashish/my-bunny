@@ -47,7 +47,7 @@ export function FloatingChatButton() {
   }, [isOpen]);
 
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 animate-slide-up" ref={menuRef}>
+    <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 animate-slide-up" ref={menuRef}>
       {/* Menu items */}
       {isOpen && !isChatPage && (
         <div className="absolute bottom-full right-0 mb-3 flex flex-col gap-2">
@@ -96,18 +96,21 @@ export function FloatingChatButton() {
           }
         }}
         className={cn(
-          "group relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full shadow-lg transition-all duration-300 hover:shadow-xl active:scale-90",
+          "group relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full shadow-xl transition-all duration-300 active:scale-90",
           isOpen || isChatPage
-            ? "bg-rose-500 rotate-90"
-            : "bg-gradient-to-br from-rose-500 to-amber-500 shadow-rose-300/40 dark:shadow-amber-900/40 hover:shadow-rose-300/50 dark:hover:shadow-amber-800/50 hover:scale-110"
+            ? "bg-rose-500 rotate-90 hover:shadow-rose-400/40"
+            : "bg-gradient-to-br from-rose-500 to-amber-500 shadow-rose-300/40 dark:shadow-amber-900/40 hover:shadow-rose-300/60 dark:hover:shadow-amber-800/60 hover:scale-110 hover:ring-4 hover:ring-rose-300/30 dark:hover:ring-amber-700/30"
         )}
       >
         {isOpen || isChatPage ? (
           <X className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
         ) : (
           <>
-            <span className="absolute inset-0 rounded-full bg-gradient-to-br from-rose-500 to-amber-500 opacity-30 animate-pulse-soft" />
-            <MessageCircle className="relative z-10 h-6 w-6 sm:h-7 sm:w-7 text-white" />
+            {/* Glow ring */}
+            <span className="absolute inset-0 rounded-full bg-gradient-to-br from-rose-400 to-amber-400 opacity-30 animate-pulse-soft scale-110 blur-sm" />
+            {/* Inner glow */}
+            <span className="absolute inset-2 rounded-full bg-white/20 blur-[2px]" />
+            <MessageCircle className="relative z-10 h-6 w-6 sm:h-7 sm:w-7 text-white drop-shadow-sm" />
           </>
         )}
 

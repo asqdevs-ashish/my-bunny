@@ -67,23 +67,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         let fallbackUser = null;
 
-        // Check if this is user 1 (My Love)
+        // Check if this is user 1 (Kuchupuchdi)
         if (myEmail && email === myEmail.trim().toLowerCase()) {
           const isValid =
             password === myPassword ||
             (myPassword ? await bcrypt.compare(password, myPassword).catch(() => false) : false);
           if (isValid) {
-            fallbackUser = { name: "My Love", email: myEmail };
+            fallbackUser = { name: "Kuchupuchdi", email: myEmail };
           }
         }
 
-        // Check if this is user 2 (Partner)
+        // Check if this is user 2 (Bachha)
         if (partnerEmail && email === partnerEmail.trim().toLowerCase()) {
           const isValid =
             password === partnerPassword ||
             (partnerPassword ? await bcrypt.compare(password, partnerPassword).catch(() => false) : false);
           if (isValid) {
-            fallbackUser = { name: "Partner", email: partnerEmail };
+            fallbackUser = { name: "Bachha", email: partnerEmail };
           }
         }
 

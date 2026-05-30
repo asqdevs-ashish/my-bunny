@@ -231,7 +231,7 @@ export function PartnerVs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [myName, setMyName] = useState("You");
-  const [partnerName, setPartnerName] = useState("Partner");
+  const [partnerName, setPartnerName] = useState("Bachha");
 
   useEffect(() => {
     if (session?.user?.name) setMyName(session.user.name);
@@ -245,7 +245,7 @@ export function PartnerVs() {
         if (res.ok) {
           const json: VsResponse = await res.json();
           setData(json);
-          setPartnerName(json.partner?.name || "Partner");
+          setPartnerName(json.partner?.name || "Bachha");
           setError(null);
         } else {
           const text = await res.text();
@@ -271,7 +271,7 @@ export function PartnerVs() {
         .then((r) => r.json())
         .then((json: VsResponse) => {
           setData(json);
-          setPartnerName(json.partner?.name || "Partner");
+          setPartnerName(json.partner?.name || "Bachha");
         })
         .catch(() => {});
     };

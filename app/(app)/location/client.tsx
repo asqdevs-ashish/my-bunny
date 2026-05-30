@@ -3,13 +3,9 @@
 import { useSession } from "next-auth/react";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Nav } from "@/components/nav";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LiveMap } from "@/components/location/live-map";
@@ -34,6 +30,7 @@ import {
   Briefcase,
   Dumbbell,
   Heart,
+  RefreshCw,
 } from "lucide-react";
 
 interface LocationClientProps {
@@ -43,7 +40,7 @@ interface LocationClientProps {
 export function LocationClient({ userName = "You" }: LocationClientProps) {
   const { data: session } = useSession();
   const myName = session?.user?.name || userName;
-  const [partnerName, setPartnerName] = useState<string>("Partner");
+  const [partnerName, setPartnerName] = useState<string>("Bachha");
   const [partnerId, setPartnerId] = useState<string | null>(null);
   const [partnerHistory, setPartnerHistory] = useState<HistoryEntry[]>([]);
   const [geofenceZones, setGeofenceZones] = useState<GeofenceZoneData[]>([]);
@@ -129,7 +126,23 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
     loading,
     toggleSharing,
     refresh,
+    lastUpdatedAt,
+    batteryMode,
   } = useLocationSharing();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [autoCenter, setAutoCenter] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh();
+    setTimeout(() => setRefreshing(false), 800);
+  }, [refresh]);
+
+  // Compute partner stale flag (5 min threshold)
+  const partnerStale = partnerLocation?.timestamp
+    ? Date.now() - new Date(partnerLocation.timestamp).getTime() > 5 * 60 * 1000
+    : false;
 
   // Fetch partner name & history
   useEffect(() => {
@@ -170,9 +183,7 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Nav />
-
-      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-20 md:pb-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -219,6 +230,9 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
                       partnerHistory={partnerHistory}
                       geofenceZones={geofenceZones}
                       onMapClick={handleMapClick}
+                      partnerStale={partnerStale}
+                      autoCenter={autoCenter}
+                      onAutoCenterChange={setAutoCenter}
                     />
                   </div>
                 )}
@@ -239,6 +253,42 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
               </CardContent>
             </Card>
 
+            {/* Refresh Button */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5 h-9 text-xs"
+                  >
+                    {refreshing ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    )}
+                    Refresh
+                  </Button>
+                  <Button
+                    onClick={() => setAutoCenter(!autoCenter)}
+                    variant={autoCenter ? "default" : "outline"}
+                    size="sm"
+                    className={`gap-1.5 h-9 text-xs ${
+                      autoCenter
+                        ? "bg-rose-500 hover:bg-rose-600 text-white"
+                        : ""
+                    }`}
+                    title="Auto-center map on your location"
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
+                    Auto
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Tracking Status */}
             <Card>
               <CardContent className="p-4">
@@ -248,6 +298,12 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
                   wakeLockActive={wakeLockActive}
                   partnerName={partnerName}
                   userName={myName}
+                  lastUpdatedAt={lastUpdatedAt}
+                  partnerLocationTimestamp={partnerLocation?.timestamp ?? null}
+                  myAccuracy={myLocation?.accuracy ?? null}
+                  partnerAccuracy={partnerLocation?.accuracy ?? null}
+                  partnerSpeed={partnerLocation?.speed ?? null}
+                  batteryMode={batteryMode}
                 />
               </CardContent>
             </Card>

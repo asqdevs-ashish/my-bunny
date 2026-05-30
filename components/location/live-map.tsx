@@ -45,6 +45,9 @@ interface LiveMapProps {
   partnerHistory?: HistoryPoint[];
   geofenceZones?: GeofenceZoneData[];
   onMapClick?: (lat: number, lng: number) => void;
+  partnerStale?: boolean;
+  autoCenter?: boolean;
+  onAutoCenterChange?: (v: boolean) => void;
 }
 
 export function LiveMap({
@@ -55,6 +58,9 @@ export function LiveMap({
   partnerHistory = [],
   geofenceZones = [],
   onMapClick,
+  partnerStale = false,
+  autoCenter = false,
+  onAutoCenterChange,
 }: LiveMapProps) {
   return (
     <div className="h-full w-full rounded-xl overflow-hidden border border-border">
@@ -66,6 +72,9 @@ export function LiveMap({
         partnerHistory={partnerHistory}
         geofenceZones={geofenceZones}
         onMapClick={onMapClick}
+        partnerStale={partnerStale}
+        autoCenter={autoCenter}
+        onAutoCenterChange={onAutoCenterChange}
       />
     </div>
   );

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWeeklySummaryForUser } from "@/lib/weekly-summary";
-import { Nav } from "@/components/nav";
 import { PartnerProfileClient } from "./client";
 
 // Disable static generation — this page is dynamic per user session
@@ -88,8 +87,7 @@ export default async function PartnerProfilePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <Nav />
-      <main className="mx-auto max-w-4xl px-3 sm:px-4 py-4 sm:py-6">
+      <main className="mx-auto max-w-4xl px-3 sm:px-4 py-4 sm:py-6 pb-20 md:pb-6">
         <PartnerProfileClient data={serializedData} />
       </main>
     </div>

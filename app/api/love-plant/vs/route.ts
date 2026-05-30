@@ -182,7 +182,7 @@ export async function GET() {
 
     const [you, partnerData] = await Promise.all([
       computePartnerVsData(currentUser.id, currentUser.name || "You", todayStart, todayEnd, weekStart),
-      computePartnerVsData(partner.id, partner.name || "Partner", todayStart, todayEnd, weekStart),
+      computePartnerVsData(partner.id, partner.name || "Bachha", todayStart, todayEnd, weekStart),
     ]);
 
     const categories = [

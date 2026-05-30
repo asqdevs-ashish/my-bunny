@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { Nav } from "@/components/nav";
 import { WaterTracker } from "@/components/water-tracker";
 import { MealLogger } from "@/components/meal-logger";
 import { LovePlant } from "@/components/love-plant";
@@ -10,12 +9,10 @@ import { MoodSelector } from "@/components/mood-selector";
 import { LoveNotes } from "@/components/love-notes";
 import { MoodRecipes } from "@/components/mood-recipes";
 import { ShareButton } from "@/components/share-button";
-import { NotificationProvider } from "@/components/notification-provider";
 import { NotificationSettingsWrapper } from "@/components/notification-settings-wrapper";
 import { PartnerOverview } from "@/components/partner-overview";
 import { MemoryScrapbook } from "@/components/memory-scrapbook";
 import { SecretNoteExchange } from "@/components/secret-note-exchange";
-import { Footer } from "@/components/footer";
 import {
   Card,
   CardContent,
@@ -24,7 +21,37 @@ import {
   Heart,
   Sparkles,
   UtensilsCrossed,
+  Smile,
+  Sun,
+  BookHeart,
+  Music,
 } from "lucide-react";
+
+// ─── Section Divider ────────────────────────────────────────
+function SectionDivider({
+  label,
+  icon: Icon,
+  delay,
+}: {
+  label: string;
+  icon: React.ElementType;
+  delay: string;
+}) {
+  return (
+    <div
+      className="animate-fade-in flex items-center gap-3 pt-2 sm:pt-3 first:pt-0"
+      style={{ animationDelay: delay } as React.CSSProperties}
+    >
+      <div className="flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-100 to-amber-100 dark:from-rose-900/30 dark:to-amber-900/30 shadow-sm">
+        <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-rose-500 dark:text-rose-400" />
+      </div>
+      <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground/70">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-gradient-to-r from-rose-200/50 via-amber-200/30 to-transparent dark:from-rose-800/30 dark:via-amber-800/20" />
+    </div>
+  );
+}
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -35,10 +62,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Nav />
-
-      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* Welcome Header */}
+      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-6 pb-20 md:pb-6">
+        {/* ─── Welcome Header ─── */}
         <div className="animate-slide-up">
           <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-rose-50 via-amber-50 to-orange-50 dark:from-[#1a1a2e] dark:via-[#1a1a2e] dark:to-[#121212] shadow-xl shadow-rose-200/30 dark:shadow-amber-900/10">
             {/* Animated gradient overlay */}
@@ -81,65 +106,71 @@ export default async function DashboardPage() {
         </div>
 
         {/* Widget Grid — single column on mobile, 3 columns on desktop */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
-          {/* Mood Selector — spans 2 cols on desktop */}
-          <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.1s" } as React.CSSProperties}>
-            <MoodSelector />
+        <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-5">
+          {/* ── SECTION 1: Daily Check-ins ── */}
+          <SectionDivider label="Daily Check-ins" icon={Sun} delay="0.05s" />
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+            <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.1s" } as React.CSSProperties}>
+              <MoodSelector />
+            </div>
+            <div className="animate-slide-up" style={{ animationDelay: "0.13s" } as React.CSSProperties}>
+              <WaterTracker />
+            </div>
           </div>
 
-          {/* Water Tracker */}
-          <div className="animate-slide-up" style={{ animationDelay: "0.15s" } as React.CSSProperties}>
-            <WaterTracker />
+          {/* ── SECTION 2: Nutrition & Growth ── */}
+          <SectionDivider label="Nutrition &amp; Growth" icon={UtensilsCrossed} delay="0.16s" />
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+            <div className="animate-slide-up" style={{ animationDelay: "0.19s" } as React.CSSProperties}>
+              <MealLogger />
+            </div>
+            <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.22s" } as React.CSSProperties}>
+              <LovePlant />
+            </div>
           </div>
 
-          {/* Meal Logger */}
-          <div className="animate-slide-up" style={{ animationDelay: "0.17s" } as React.CSSProperties}>
-            <MealLogger />
+          {/* ── SECTION 3: Together ── */}
+          <SectionDivider label="Together" icon={Heart} delay="0.25s" />
+          <div className="grid gap-4 sm:gap-6 grid-cols-1">
+            <div className="animate-slide-up" style={{ animationDelay: "0.28s" } as React.CSSProperties}>
+              <PartnerOverview />
+            </div>
           </div>
 
-          {/* Love Plant — spans 2 cols on desktop */}
-          <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.2s" } as React.CSSProperties}>
-            <LovePlant />
+          {/* ── SECTION 4: Romance ── */}
+          <SectionDivider label="Romance" icon={BookHeart} delay="0.31s" />
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+            <div className="animate-slide-up lg:col-span-1" style={{ animationDelay: "0.34s" } as React.CSSProperties}>
+              <SecretNoteExchange />
+            </div>
+            <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.37s" } as React.CSSProperties}>
+              <MemoryScrapbook />
+            </div>
           </div>
 
-          {/* Partner Update — full width */}
-          <div className="animate-slide-up lg:col-span-3" style={{ animationDelay: "0.25s" } as React.CSSProperties}>
-            <PartnerOverview />
+          {/* ── SECTION 5: Inspiration ── */}
+          <SectionDivider label="Inspiration" icon={Music} delay="0.4s" />
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+            <div className="animate-slide-up" style={{ animationDelay: "0.43s" } as React.CSSProperties}>
+              <LoveNotes />
+            </div>
+            <div className="animate-slide-up" style={{ animationDelay: "0.46s" } as React.CSSProperties}>
+              <MoodRecipes />
+            </div>
+            <div className="animate-slide-up" style={{ animationDelay: "0.49s" } as React.CSSProperties}>
+              <WeeklySummary />
+            </div>
           </div>
 
-          {/* Private Love Note */}
-          <div className="animate-slide-up" style={{ animationDelay: "0.3s" } as React.CSSProperties}>
-            <SecretNoteExchange />
-          </div>
-
-          {/* Memory Scrapbook */}
-          <div className="animate-slide-up" style={{ animationDelay: "0.35s" } as React.CSSProperties}>
-            <MemoryScrapbook />
-          </div>
-
-          {/* Love Note for You */}
-          <div className="animate-slide-up" style={{ animationDelay: "0.4s" } as React.CSSProperties}>
-            <LoveNotes />
-          </div>
-
-          {/* Weekly Summary */}
-          <div className="animate-slide-up" style={{ animationDelay: "0.45s" } as React.CSSProperties}>
-            <WeeklySummary />
-          </div>
-
-          {/* Recipe Ideas */}
-          <div className="animate-slide-up" style={{ animationDelay: "0.5s" } as React.CSSProperties}>
-            <MoodRecipes />
-          </div>
-
-          {/* App Reminder — full width */}
-          <div className="animate-slide-up lg:col-span-3" style={{ animationDelay: "0.55s" } as React.CSSProperties}>
-            <NotificationSettingsWrapper />
+          {/* ── SECTION 6: Settings ── */}
+          <SectionDivider label="Preferences" icon={Smile} delay="0.52s" />
+          <div className="grid gap-4 sm:gap-6 grid-cols-1">
+            <div className="animate-slide-up" style={{ animationDelay: "0.55s" } as React.CSSProperties}>
+              <NotificationSettingsWrapper />
+            </div>
           </div>
         </div>
       </main>
-
-      {/* Footer */}
 
       {/* Floating Chat Button */}
       <FloatingChatButton />

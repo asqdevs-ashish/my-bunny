@@ -10,8 +10,6 @@ export default async function LocationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <LocationClient userName={session.user.name || "You"} />
-    </div>
+    <LocationClient userName={session.user.name || "You"} />
   );
 }

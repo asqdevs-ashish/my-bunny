@@ -13,26 +13,28 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { LocateFixed, Satellite, Map as MapIcon } from "lucide-react";
+import { LocateFixed, Satellite, Map as MapIcon, Crosshair, Clock } from "lucide-react";
 import type { LocationUpdate } from "@/hooks/use-location-sharing";
 import type { GeofenceZoneData } from "./live-map";
 import { haversineDistance, formatDistance } from "@/lib/location/haversine";
 
 // ─── Fix default marker icon ──────────────────────────────────
 // Leaflet's default icons break in bundlers; use a simple SVG-based approach
-const createMarkerIcon = (color: string, pulse: boolean = false) =>
+const createMarkerIcon = (color: string, pulse: boolean = false, stale: boolean = false) =>
   L.divIcon({
     className: "custom-marker",
     html: `
       <div style="
         width: ${pulse ? 20 : 16}px;
         height: ${pulse ? 20 : 16}px;
-        background: ${color};
-        border: 3px solid white;
+        background: ${stale ? "#9ca3af" : color};
+        border: 3px solid ${stale ? "#d1d5db" : "white"};
         border-radius: 50%;
         box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        ${pulse ? "animation: pulse-marker 1.5s infinite;" : ""}
+        opacity: ${stale ? 0.6 : 1};
+        ${pulse && !stale ? "animation: pulse-marker 1.5s infinite;" : ""}
       "/>
+      ${stale ? '<div style="position:absolute;top:-4px;right:-4px;font-size:10px;">🕐</div>' : ""}
     `,
     iconSize: pulse ? [20, 20] : [16, 16],
     iconAnchor: pulse ? [10, 10] : [8, 8],
@@ -69,6 +71,32 @@ function FitBounds({
   return null;
 }
 
+// ─── Auto-center component ────────────────────────────────────
+
+function AutoCenter({
+  enabled,
+  target,
+}: {
+  enabled: boolean;
+  target: { latitude: number; longitude: number } | null;
+}) {
+  const map = useMap();
+  const prevTargetRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !target) return;
+    const key = `${target.latitude.toFixed(5)},${target.longitude.toFixed(5)}`;
+    if (key === prevTargetRef.current) return;
+    prevTargetRef.current = key;
+
+    map.flyTo([target.latitude, target.longitude], Math.max(map.getZoom(), 14), {
+      duration: 1,
+    });
+  }, [enabled, target, map]);
+
+  return null;
+}
+
 // ─── Map Component ────────────────────────────────────────────
 
 interface LiveMapInnerProps {
@@ -82,16 +110,25 @@ interface LiveMapInnerProps {
   geofenceZones?: GeofenceZoneData[];
   /** Called when user clicks on the map to create a zone */
   onMapClick?: (lat: number, lng: number) => void;
+  /** Whether partner's location is stale (>5 min old) */
+  partnerStale?: boolean;
+  /** Auto-center toggle state */
+  autoCenter?: boolean;
+  /** Called when auto-center setting changes */
+  onAutoCenterChange?: (v: boolean) => void;
 }
 
 export function LiveMapInner({
   myLocation,
   partnerLocation,
-  partnerName = "Partner",
+  partnerName = "Bachha",
   userName = "You",
   partnerHistory = [],
   geofenceZones = [],
   onMapClick,
+  partnerStale = false,
+  autoCenter = false,
+  onAutoCenterChange,
 }: LiveMapInnerProps) {
   const [mapStyle, setMapStyle] = useState<"street" | "satellite">("street");
 
@@ -144,6 +181,14 @@ export function LiveMapInner({
       {/* Fit bounds to show both markers */}
       <FitBounds myLocation={myLocation} partnerLocation={partnerLocation} />
 
+      {/* Auto-center when enabled */}
+      {autoCenter && (
+        <AutoCenter
+          enabled={autoCenter}
+          target={myLocation || partnerLocation}
+        />
+      )}
+
       {/* Map click handler for adding geofence zones */}
       {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
 
@@ -152,25 +197,50 @@ export function LiveMapInner({
         <>
           <Marker
             position={[partnerLocation.latitude, partnerLocation.longitude]}
-            icon={createMarkerIcon(partnerColor, true)}
+            icon={createMarkerIcon(partnerColor, !partnerStale, partnerStale)}
           >
             <Popup>
               <div className="text-center min-w-[120px]">
                 <p className="font-semibold text-sm">{partnerName} 💕</p>
-                {distance !== null && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatDistance(distance)} away
+                {partnerStale ? (
+                  <p className="text-xs text-amber-500 font-medium mt-1 flex items-center justify-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Last seen {partnerLocation.timestamp
+                      ? (() => {
+                          const diff = Date.now() - new Date(partnerLocation.timestamp).getTime();
+                          const min = Math.floor(diff / 60000);
+                          return min < 60 ? `${min}m ago` : `${Math.floor(min / 60)}h ago`;
+                        })()
+                      : "a while ago"}
                   </p>
-                )}
-                {partnerLocation.accuracy && (
-                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                    ±{Math.round(partnerLocation.accuracy)}m accuracy
-                  </p>
-                )}
-                {partnerLocation.timestamp && (
-                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                    {new Date(partnerLocation.timestamp).toLocaleTimeString()}
-                  </p>
+                ) : (
+                  <>
+                    {distance !== null && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatDistance(distance)} away
+                      </p>
+                    )}
+                    {partnerLocation.accuracy && (
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                        ±{Math.round(partnerLocation.accuracy)}m accuracy
+                      </p>
+                    )}
+                    {partnerLocation.speed !== null && partnerLocation.speed !== undefined && (
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                        Speed: {(partnerLocation.speed * 3.6).toFixed(0)} km/h
+                      </p>
+                    )}
+                    {partnerLocation.heading !== null && partnerLocation.heading !== undefined && (
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                        Heading: {Math.round(partnerLocation.heading)}°
+                      </p>
+                    )}
+                    {partnerLocation.timestamp && (
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                        {new Date(partnerLocation.timestamp).toLocaleTimeString()}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </Popup>
@@ -181,9 +251,9 @@ export function LiveMapInner({
               center={[partnerLocation.latitude, partnerLocation.longitude]}
               radius={partnerLocation.accuracy}
               pathOptions={{
-                color: partnerColor,
-                fillColor: partnerColor,
-                fillOpacity: 0.08,
+                color: partnerStale ? "#9ca3af" : partnerColor,
+                fillColor: partnerStale ? "#9ca3af" : partnerColor,
+                fillOpacity: partnerStale ? 0.04 : 0.08,
                 weight: 1,
               }}
             />
@@ -209,14 +279,12 @@ export function LiveMapInner({
               </div>
             </Popup>
           </Marker>
-          {/* Accuracy circle */}
-          {/* Note: accuracy for self is not passed in props yet; could add */}
         </>
       )}
 
       {/* Partner movement path (history trail) */}
       {partnerHistory.length >= 2 && (
-        <MovementPath history={partnerHistory} />
+        <MovementPath history={partnerHistory} stale={partnerStale} />
       )}
 
       {/* Geofence Zones */}
@@ -236,8 +304,12 @@ export function LiveMapInner({
       {/* Custom Map Controls */}
       <MapControls
         myLocation={myLocation}
+        partnerLocation={partnerLocation}
+        partnerName={partnerName}
         mapStyle={mapStyle}
         onStyleChange={setMapStyle}
+        autoCenter={autoCenter}
+        onAutoCenterChange={onAutoCenterChange}
       />
 
       {/* Custom Minimal Attribution */}
@@ -262,9 +334,11 @@ export function LiveMapInner({
           <div className="flex items-center gap-2 text-xs">
             <span
               className="inline-block w-3 h-3 rounded-full border-2 border-white shadow-sm"
-              style={{ background: partnerColor }}
+              style={{ background: partnerStale ? "#9ca3af" : partnerColor }}
             />
-            <span>{partnerName}</span>
+            <span className={partnerStale ? "text-gray-400" : ""}>
+              {partnerName} {partnerStale ? "(stale)" : ""}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-xs mt-1">
             <span
@@ -283,8 +357,10 @@ export function LiveMapInner({
 
 function MovementPath({
   history,
+  stale = false,
 }: {
   history: Array<{ latitude: number; longitude: number; createdAt: string }>;
+  stale?: boolean;
 }) {
   const map = useMap();
 
@@ -292,26 +368,27 @@ function MovementPath({
     if (!map || history.length < 2) return;
 
     const latlngs: [number, number][] = history.map((h) => [h.latitude, h.longitude]);
+    const color = stale ? "#9ca3af" : "#f43f5e";
 
     // Main trail polyline (solid, semi-transparent)
     const trail = L.polyline(latlngs, {
-      color: "#f43f5e",
+      color,
       weight: 3,
-      opacity: 0.5,
+      opacity: stale ? 0.3 : 0.5,
     }).addTo(map);
 
     // Glow effect (thicker, more transparent, underneath)
     const glow = L.polyline(latlngs, {
-      color: "#f43f5e",
+      color,
       weight: 7,
-      opacity: 0.12,
+      opacity: stale ? 0.06 : 0.12,
     }).addTo(map);
 
     // Dotted overlay
     const dots = L.polyline(latlngs, {
-      color: "#f43f5e",
+      color,
       weight: 1,
-      opacity: 0.3,
+      opacity: stale ? 0.15 : 0.3,
       dashArray: "4, 8",
     }).addTo(map);
 
@@ -320,7 +397,7 @@ function MovementPath({
       map.removeLayer(glow);
       map.removeLayer(dots);
     };
-  }, [map, history]);
+  }, [map, history, stale]);
 
   return null;
 }
@@ -366,7 +443,7 @@ function GeofenceZonesLayer({
             white-space: nowrap;
             box-shadow: 0 1px 4px rgba(0,0,0,0.2);
             opacity: 0.85;
-          ">${zone.name}</div>`,
+          \">${zone.name}</div>`,
           iconSize: [0, 0],
           iconAnchor: [0, 0],
         }),
@@ -393,6 +470,18 @@ function MapClickHandler({
 }) {
   useMapEvents({
     click(e) {
+      // 🚫 Ignore clicks on Leaflet controls (Map/Sat buttons, Auto, My Location,
+      //    zoom controls, partner crosshair) — these should NOT create geofence zones
+      const target = e.originalEvent?.target as HTMLElement | null;
+      if (
+        target?.closest(".leaflet-control-container") ||
+        target?.closest(".leaflet-top") ||
+        target?.closest(".leaflet-bottom") ||
+        target?.closest(".leaflet-control-zoom") ||
+        target?.closest(".leaflet-control")
+      ) {
+        return;
+      }
       onMapClick(e.latlng.lat, e.latlng.lng);
     },
   });
@@ -439,7 +528,7 @@ function DistanceLine({
           font-weight: 600;
           white-space: nowrap;
           box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-        ">${formatDistance(distance)}</div>`,
+        \">${formatDistance(distance)}</div>`,
         iconSize: [0, 0],
         iconAnchor: [0, 0],
       }),
@@ -455,16 +544,24 @@ function DistanceLine({
   return null;
 }
 
-// ─── Map Controls (Locate + Layer Switcher) ────────────────────
+// ─── Map Controls (Locate + Layer Switcher + Zoom Partner) ─────
 
 function MapControls({
   myLocation,
+  partnerLocation,
+  partnerName,
   mapStyle,
   onStyleChange,
+  autoCenter,
+  onAutoCenterChange,
 }: {
   myLocation: { latitude: number; longitude: number } | null;
+  partnerLocation: { latitude: number; longitude: number } | null;
+  partnerName?: string;
   mapStyle: "street" | "satellite";
   onStyleChange: (style: "street" | "satellite") => void;
+  autoCenter?: boolean;
+  onAutoCenterChange?: (v: boolean) => void;
 }) {
   const map = useMap();
   const [locating, setLocating] = useState(false);
@@ -475,13 +572,20 @@ function MapControls({
         duration: 1,
       });
     } else {
-      // If no location prop, try browser geolocation directly
       setLocating(true);
       map.locate({ setView: true, maxZoom: 14, enableHighAccuracy: true });
       map.once("locationfound", () => setLocating(false));
       map.once("locationerror", () => setLocating(false));
     }
   }, [map, myLocation]);
+
+  const handleZoomToPartner = useCallback(() => {
+    if (partnerLocation) {
+      map.flyTo([partnerLocation.latitude, partnerLocation.longitude], 15, {
+        duration: 1,
+      });
+    }
+  }, [map, partnerLocation]);
 
   return (
     <div className="leaflet-top leaflet-right">
@@ -513,6 +617,40 @@ function MapControls({
             <span>Sat</span>
           </button>
         </div>
+
+        {/* Separator */}
+        <div className="h-px bg-border/40 mx-1" />
+
+        {/* Zoom to Partner Button */}
+        {partnerLocation && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleZoomToPartner(); }}
+              className="flex items-center justify-center w-full gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 active:scale-95 transition-all"
+              title={`Zoom to ${partnerName || "Bachha"}'s location`}
+            >
+              <Crosshair className="h-3.5 w-3.5 text-rose-500" />
+              <span>{partnerName || "Bachha"}</span>
+            </button>
+            <div className="h-px bg-border/40 mx-1" />
+          </>
+        )}
+
+        {/* Auto-Center Toggle */}
+        {onAutoCenterChange && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAutoCenterChange(!autoCenter); }}
+            className={`flex items-center justify-center w-full gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
+              autoCenter
+                ? "bg-rose-500 text-white shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            }`}
+            title={autoCenter ? "Disable auto-center" : "Auto-center on your location"}
+          >
+            <LocateFixed className={`h-3.5 w-3.5 ${autoCenter ? "animate-pulse" : ""}`} />
+            <span>Auto</span>
+          </button>
+        )}
 
         {/* Separator */}
         <div className="h-px bg-border/40 mx-1" />

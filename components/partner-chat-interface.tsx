@@ -283,7 +283,7 @@ export function PartnerChatInterface({
       className={cn(
         "relative flex flex-col overflow-hidden",
         fullScreen
-          ? "h-[calc(100dvh-4.5rem)] rounded-none border-0"
+          ? "flex-1 min-h-0 rounded-none border-0"
           : "h-[calc(100vh-8rem)] min-h-[450px] rounded-2xl border border-border bg-card shadow-md"
       )}
     >

@@ -1,19 +1,23 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log("🌱 Seeding database...");
 
-  const myEmail = process.env.MY_EMAIL;
-  const myPassword = process.env.MY_PASSWORD;
+  const myEmail = process.env.MY_EMAIL || process.env.GF_EMAIL;
+  const myPassword = process.env.MY_PASSWORD || process.env.GF_PASSWORD;
   const partnerEmail = process.env.PARTNER_EMAIL;
   const partnerPassword = process.env.PARTNER_PASSWORD;
 
   if (!myEmail || !myPassword || !partnerEmail || !partnerPassword) {
     console.error(
-      "❌ Missing environment variables. Set MY_EMAIL, MY_PASSWORD, PARTNER_EMAIL, PARTNER_PASSWORD in .env"
+      "❌ Missing environment variables. Set MY_EMAIL (or GF_EMAIL), MY_PASSWORD (or GF_PASSWORD), PARTNER_EMAIL, PARTNER_PASSWORD in .env"
     );
     process.exit(1);
   }
@@ -22,12 +26,12 @@ async function main() {
   const myHashed = await bcrypt.hash(myPassword, 10);
   const partnerHashed = await bcrypt.hash(partnerPassword, 10);
 
-  // Upsert users (create if not exists, update if exists)
+  // Upsert users (update name AND password so existing DB records get renamed too)
   const me = await prisma.user.upsert({
     where: { email: myEmail },
-    update: { password: myHashed },
+    update: { name: "Kuchupuchdi", password: myHashed },
     create: {
-      name: "My Love",
+      name: "Kuchupuchdi",
       email: myEmail,
       password: myHashed,
     },
@@ -36,9 +40,9 @@ async function main() {
 
   const partner = await prisma.user.upsert({
     where: { email: partnerEmail },
-    update: { password: partnerHashed },
+    update: { name: "Bachha", password: partnerHashed },
     create: {
-      name: "Partner",
+      name: "Bachha",
       email: partnerEmail,
       password: partnerHashed,
     },

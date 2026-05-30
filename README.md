@@ -88,7 +88,8 @@ npm run dev
 ├── lib/                    # Shared utilities
 ├── prisma/                 # Database schema
 ├── public/                 # Static assets (icons, service worker)
-└── middleware.ts           # Auth middleware
+├── types/                  # TypeScript type declarations
+└── hooks/                  # Custom React hooks
 ```
 
 ---
