@@ -27,6 +27,46 @@ export function haversineDistance(
 }
 
 /**
+ * Fetch route distance (shortest road distance) between two points using OSRM.
+ * Falls back to haversine (straight-line) if the API fails or is unavailable.
+ */
+export async function getRouteDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): Promise<{
+  distanceKm: number;
+  durationSec: number | null;
+  isRoute: boolean;
+}> {
+  try {
+    const res = await fetch(
+      `/api/location/route-distance?lat1=${lat1}&lng1=${lng1}&lat2=${lat2}&lng2=${lng2}`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.routeDistanceKm !== null) {
+        return {
+          distanceKm: data.routeDistanceKm,
+          durationSec: data.routeDurationSec,
+          isRoute: true,
+        };
+      }
+    }
+  } catch {
+    // Fall through to haversine
+  }
+
+  // Fallback to straight-line distance
+  return {
+    distanceKm: haversineDistance(lat1, lng1, lat2, lng2),
+    durationSec: null,
+    isRoute: false,
+  };
+}
+
+/**
  * Format a distance in kilometers for display.
  */
 export function formatDistance(km: number): string {

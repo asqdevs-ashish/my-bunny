@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Footprints, Car } from "lucide-react";
+import { MapPin, Footprints, Car, Route, Navigation } from "lucide-react";
 import { estimateTravelTime, formatDistance } from "@/lib/location/haversine";
 import { cn } from "@/lib/utils";
 
@@ -8,12 +8,21 @@ interface DistanceBadgeProps {
   distanceKm: number | null;
   partnerIsSharing: boolean;
   partnerName?: string;
+  /** Route-based distance (actual road/path) in km — more accurate */
+  routeDistanceKm?: number | null;
+  /** Route duration in seconds */
+  routeDurationSec?: number | null;
+  /** Whether the main distance displayed is route-based */
+  isRouteDistance?: boolean;
 }
 
 export function DistanceBadge({
   distanceKm,
   partnerIsSharing,
   partnerName = "Bachha",
+  routeDistanceKm,
+  routeDurationSec,
+  isRouteDistance = false,
 }: DistanceBadgeProps) {
   if (distanceKm === null) {
     return (
@@ -28,9 +37,25 @@ export function DistanceBadge({
     );
   }
 
-  const travel = estimateTravelTime(distanceKm);
-  const isClose = distanceKm < 0.1; // less than 100m
-  const isNearby = distanceKm < 1; // less than 1km
+  // Use route distance if available, otherwise fall back to haversine
+  const displayKm = routeDistanceKm ?? distanceKm;
+  const showingRoute = routeDistanceKm !== null;
+  const travel = estimateTravelTime(displayKm);
+  const isClose = displayKm < 0.1; // less than 100m
+  const isNearby = displayKm < 1; // less than 1km
+
+  // Format route duration if available
+  const formatDuration = (sec: number | null): string | null => {
+    if (sec === null) return null;
+    const min = Math.round(sec / 60);
+    if (min < 1) return "< 1 min";
+    if (min < 60) return `${min} min`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  };
+
+  const durationText = routeDurationSec ? formatDuration(routeDurationSec) : null;
 
   return (
     <div
@@ -48,9 +73,25 @@ export function DistanceBadge({
         <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
           Distance from {partnerName}
         </p>
-        <p className="text-2xl font-bold mt-1 tabular-nums">
-          {formatDistance(distanceKm)}
-        </p>
+        <div className="flex items-center justify-center gap-1.5 mt-1">
+          {showingRoute && (
+            <Route className="h-4 w-4 text-rose-400 shrink-0" />
+          )}
+          <p className="text-2xl font-bold tabular-nums">
+            {formatDistance(displayKm)}
+          </p>
+        </div>
+        {showingRoute && (
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5 flex items-center justify-center gap-1">
+            <Navigation className="h-3 w-3" />
+            Route distance{durationText ? ` · ${durationText}` : ""}
+          </p>
+        )}
+        {!showingRoute && isRouteDistance && (
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+            Calculating route...
+          </p>
+        )}
         {isClose && (
           <p className="text-xs text-green-600 dark:text-green-400 font-medium mt-0.5">
             You&apos;re very close! 🥰
@@ -59,7 +100,7 @@ export function DistanceBadge({
       </div>
 
       {/* Travel Time Estimates */}
-      {distanceKm >= 0.1 && (
+      {displayKm >= 0.1 && (
         <div className="grid grid-cols-2 gap-2 pt-1">
           <div className="flex items-center gap-1.5 rounded-lg bg-secondary/40 px-2.5 py-2">
             <Footprints className="h-3.5 w-3.5 text-muted-foreground shrink-0" />

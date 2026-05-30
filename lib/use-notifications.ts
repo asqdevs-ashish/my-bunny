@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { getTimeOfDay, getMoodCheckBody } from "@/lib/utils";
 
 export type NotificationType = "water" | "meal" | "love" | "mood";
 
@@ -214,10 +215,16 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  */
 async function syncPreferencesToServer(prefs: NotificationPreferences): Promise<boolean> {
   try {
+    // Include user's timezone offset so server cron can calculate local time
+    const tzOffset = new Date().getTimezoneOffset(); // minutes from UTC (IST = -330)
+    const body: Record<string, unknown> = { preferences: prefs };
+    if (tzOffset !== 0) {
+      body.timezoneOffset = -tzOffset; // Convert to + minutes from UTC (IST = +330)
+    }
     const res = await fetch("/api/push/preferences", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ preferences: prefs }),
+      body: JSON.stringify(body),
     });
     return res.ok;
   } catch {
@@ -466,9 +473,17 @@ export function useNotifications() {
           const lastMoodData = localStorage.getItem(LAST_MOOD_KEY);
           const today = now.toDateString();
           if (lastMoodData !== today) {
+            // Use time-of-day greeting based on current hour
+            const { greeting } = getTimeOfDay(hour);
+            const moodMessages: Record<string, string> = {
+              morning: "Good morning baby! How are you feeling today? 🌅",
+              afternoon: "How are you feeling this afternoon, baby? Tap to tell me!",
+              evening: "How's your evening going, baby? Tap to share! 🌆",
+              night: "How was your day, baby? Tap to tell me about it! 🌙",
+            };
             showNotification(
               "🥰 Mood Check",
-              "How are you feeling this afternoon, baby? Tap to tell me!",
+              moodMessages[greeting],
               "mood-check"
             );
             void sendServerPush("mood"); // Also send via server for background delivery
@@ -581,8 +596,7 @@ export function useNotifications() {
     // 4. Mood Check
     await sendWithDelay(
       "mood",
-      "🥰 Mood Check",
-      "[TEST] How are you feeling this afternoon, baby? Tap to tell me!",
+      "🥰 Mood Check",              `[TEST] ${getMoodCheckBody(new Date().getHours())}`,
       "test-mood",
       1500
     );

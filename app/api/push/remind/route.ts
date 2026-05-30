@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendPushNotification } from "@/lib/web-push";
+import { getMoodCheckBody } from "@/lib/utils";
 
 const LOVE_NOTIFICATIONS = [
   "Hey baby! Just a reminder — you're amazing! 💕",
@@ -67,7 +68,7 @@ const REMINDER_CONFIG: Record<string, ReminderConfig> = {
     title: "🥰 Mood Check",
     url: "/mood",
     hours: [15],
-    getBody: () => "How are you feeling this afternoon, baby? Tap to tell me!",
+    getBody: (hour: number) => getMoodCheckBody(hour),
     getTag: () => "mood-check",
   },
 };
@@ -317,11 +318,19 @@ export async function GET(req: Request) {
         // Parse last-sent tracking (default: empty)
         const lastSent = (user.lastReminderSent as Record<string, string> | null) ?? {};
 
+        // ── Calculate user's local hour from their timezone offset ──
+        const prefsWithTz = user.notificationPrefs as Record<string, unknown> | null;
+        const tzOffsetMinutes = (prefsWithTz?.timezoneOffset as number | undefined) ?? 0;
+        const utcMinutes = hour * 60 + minute;
+        const localMinutes = (utcMinutes + tzOffsetMinutes + 1440) % 1440;
+        const localHour = Math.floor(localMinutes / 60);
+        const localHourForDedup = localHour;
+
         for (const reminderType of VALID_TYPES) {
           const config = REMINDER_CONFIG[reminderType];
 
-          // ── Check 1: Is this reminder due at the current hour?
-          if (!config.hours.includes(hour)) continue;
+          // ── Check 1: Is this reminder due at the user's local hour?
+          if (!config.hours.includes(localHour)) continue;
 
           // ── Check 2: Does the user want this reminder type?
           if (!prefs[reminderType]) {
@@ -329,25 +338,34 @@ export async function GET(req: Request) {
             continue;
           }
 
-          // ── Check 3: Already sent in this hour? (dedup)
+          // ── Check 3: Already sent in this hour? (dedup using local hour)
           const lastSentStr = lastSent[reminderType];
           if (lastSentStr) {
             const lastSentDate = new Date(lastSentStr);
-            // If last sent within the same calendar hour (and same day), skip
+            // Convert lastSent to user's local hour for comparison
+            const lastSentLocalMinutes = (lastSentDate.getUTCHours() * 60 + lastSentDate.getUTCMinutes() + tzOffsetMinutes + 1440) % 1440;
+            const lastSentLocalHour = Math.floor(lastSentLocalMinutes / 60);
+            const lastSentLocalDate = new Date(lastSentDate.getTime() + tzOffsetMinutes * 60 * 1000);
             if (
-              lastSentDate.getHours() === hour &&
-              lastSentDate.getDate() === now.getDate() &&
-              lastSentDate.getMonth() === now.getMonth() &&
-              lastSentDate.getFullYear() === now.getFullYear()
+              lastSentLocalHour === localHourForDedup &&
+              lastSentLocalDate.getUTCDate() === now.getUTCDate() &&
+              lastSentLocalDate.getUTCMonth() === now.getUTCMonth() &&
+              lastSentLocalDate.getUTCFullYear() === now.getUTCFullYear()
             ) {
               results.push({ userId: user.id, type: reminderType, success: false, skipped: "already sent this hour" });
               continue;
             }
           }
 
-          // ── Send the push!
+          // ── Send the push! (pass localHour so getBody can generate right greeting)
           if (user.pushSubscription) {
-            const success = await sendReminderPush(user.pushSubscription, reminderType);
+            // Override sendReminderPush to use localHour for body generation
+            const success = await sendPushNotification(user.pushSubscription, {
+              title: config.title,
+              body: config.getBody(localHour),
+              tag: config.getTag(localHour),
+              url: config.url,
+            });
             if (success) {
               // Record the send time for dedup
               lastSent[reminderType] = now.toISOString();

@@ -8,6 +8,8 @@ export interface NotificationPreferences {
   meal: boolean;
   love: boolean;
   mood: boolean;
+  /** Timezone offset in minutes from UTC (e.g. IST = 330) */
+  timezoneOffset?: number;
 }
 
 const DEFAULT_PREFERENCES: NotificationPreferences = {
@@ -77,6 +79,7 @@ export async function POST(req: Request) {
       meal: typeof prefs.meal === "boolean" ? prefs.meal : DEFAULT_PREFERENCES.meal,
       love: typeof prefs.love === "boolean" ? prefs.love : DEFAULT_PREFERENCES.love,
       mood: typeof prefs.mood === "boolean" ? prefs.mood : DEFAULT_PREFERENCES.mood,
+      timezoneOffset: typeof prefs.timezoneOffset === "number" ? prefs.timezoneOffset : undefined,
     };
 
     await db.user.update({

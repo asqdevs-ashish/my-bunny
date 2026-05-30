@@ -119,7 +119,9 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
     myLocation,
     partnerLocation,
     distanceKm,
-    distanceText,
+    routeDistanceKm,
+    routeDurationSec,
+    isRouteDistance,
     isSupported,
     error,
     wakeLockActive,
@@ -313,6 +315,9 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
               <CardContent className="p-4">
                 <DistanceBadge
                   distanceKm={distanceKm}
+                  routeDistanceKm={routeDistanceKm}
+                  routeDurationSec={routeDurationSec}
+                  isRouteDistance={isRouteDistance}
                   partnerIsSharing={partnerIsSharing}
                   partnerName={partnerName}
                 />

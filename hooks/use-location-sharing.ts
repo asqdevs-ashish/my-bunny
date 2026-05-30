@@ -13,7 +13,7 @@ import {
   releaseWakeLock,
   setupWakeLockAutoReacquire,
 } from "@/lib/location/wake-lock";
-import { haversineDistance, formatDistance } from "@/lib/location/haversine";
+import { haversineDistance, formatDistance, getRouteDistance } from "@/lib/location/haversine";
 
 // ─── Battery Optimization Constants ────────────────────────────
 
@@ -59,10 +59,16 @@ export interface SharingState {
   myLocation: GeoPosition | null;
   /** The partner's live position */
   partnerLocation: LocationUpdate | null;
-  /** Distance between the two users in km */
+  /** Distance between the two users in km (straight-line / haversine) */
   distanceKm: number | null;
   /** Formatted distance string like "2.5 km" */
   distanceText: string | null;
+  /** Route-based distance (actual road/cycling/walking path) in km */
+  routeDistanceKm: number | null;
+  /** Route duration in seconds */
+  routeDurationSec: number | null;
+  /** Whether the displayed distance is route-based (true) or straight-line (false) */
+  isRouteDistance: boolean;
   /** Whether geolocation is supported */
   isSupported: boolean;
   /** Error message if something went wrong */
@@ -89,6 +95,9 @@ export function useLocationSharing() {
     partnerLocation: null,
     distanceKm: null,
     distanceText: null,
+    routeDistanceKm: null,
+    routeDurationSec: null,
+    isRouteDistance: false,
     isSupported: false,
     error: null,
     wakeLockActive: false,
@@ -113,6 +122,7 @@ export function useLocationSharing() {
     heading: number | null;
   } | null>(null);
   const partnerLocationRef = useRef<LocationUpdate | null>(null);
+  const myLocationRef = useRef<GeoPosition | null>(null);
 
   // ── Battery optimisation refs ─────────────────────────────────
   const batteryModeRef = useRef<BatteryMode>("high");
@@ -120,6 +130,25 @@ export function useLocationSharing() {
     Array<{ speed: number | null; timestamp: number }>
   >([]);
   const stationarySinceRef = useRef<number | null>(null);
+
+  // ─── Debounce ref for route distance API calls ───────────────
+  const routeDistanceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ─── Fetch route distance via OSRM API ──────────────────────
+  const fetchRouteDistance = useCallback(
+    async (myLat: number, myLng: number, partnerLat: number, partnerLng: number) => {
+      const result = await getRouteDistance(myLat, myLng, partnerLat, partnerLng);
+      setState((prev) => ({
+        ...prev,
+        distanceKm: result.distanceKm,
+        distanceText: formatDistance(result.distanceKm),
+        routeDistanceKm: result.isRoute ? result.distanceKm : null,
+        routeDurationSec: result.durationSec,
+        isRouteDistance: result.isRoute,
+      }));
+    },
+    []
+  );
 
   // ─── Compute distance between users ──────────────────────────
 
@@ -136,15 +165,24 @@ export function useLocationSharing() {
         partnerLat !== null &&
         partnerLng !== null
       ) {
+        // Show haversine immediately (fast), then fetch route distance
         const km = haversineDistance(myLat, myLng, partnerLat, partnerLng);
         setState((prev) => ({
           ...prev,
           distanceKm: km,
           distanceText: formatDistance(km),
         }));
+
+        // Debounce route distance fetch (don't spam API on every position update)
+        if (routeDistanceTimeoutRef.current) {
+          clearTimeout(routeDistanceTimeoutRef.current);
+        }
+        routeDistanceTimeoutRef.current = setTimeout(() => {
+          fetchRouteDistance(myLat, myLng, partnerLat, partnerLng);
+        }, 2000); // Wait 2s after last position update before hitting OSRM
       }
     },
-    []
+    [fetchRouteDistance]
   );
 
   // ─── Fetch partner's last known location ─────────────────────
@@ -164,6 +202,24 @@ export function useLocationSharing() {
             heading: data.location.heading,
             timestamp: data.location.updatedAt || new Date().toISOString(),
           };
+          partnerLocationRef.current = loc;
+
+          // Trigger route distance outside setState (avoid side-effects in setState callback)
+          const currentMyLocation = myLocationRef.current;
+          if (currentMyLocation) {
+            if (routeDistanceTimeoutRef.current) {
+              clearTimeout(routeDistanceTimeoutRef.current);
+            }
+            routeDistanceTimeoutRef.current = setTimeout(() => {
+              fetchRouteDistance(
+                currentMyLocation.latitude,
+                currentMyLocation.longitude,
+                loc.latitude,
+                loc.longitude
+              );
+            }, 500);
+          }
+
           setState((prev) => ({
             ...prev,
             partnerLocation: loc,
@@ -180,7 +236,7 @@ export function useLocationSharing() {
       console.error("Failed to fetch partner location:", err);
       setState((prev) => ({ ...prev, loading: false, error: "Failed to fetch partner location" }));
     }
-  }, []);
+  }, [fetchRouteDistance]);
 
   // ─── Send location to server (mode-aware throttle) ────────────
 
@@ -230,6 +286,9 @@ export function useLocationSharing() {
 
       const watchId = startWatchingPosition(
         (position) => {
+          // ── Update ref (always fresh — avoids stale closures) ──
+          myLocationRef.current = position;
+
           // ── Update state ──
           setState((prev) => ({
             ...prev,
@@ -477,10 +536,36 @@ export function useLocationSharing() {
             "location-update",
             (pusherData: { location: LocationUpdate }) => {
               const loc = pusherData.location;
+
+              // 🐛 CRITICAL: Ignore our own location echoed back via Pusher!
+              // The partner channel is shared by both users, so both receive
+              // events when either user updates. We must only update partnerLocation
+              // if the update is actually from our partner (different userId).
+              if (loc.userId === userId) {
+                return;
+              }
+
               // Update ref for latest partner location
               partnerLocationRef.current = loc;
+
+              // Fetch route distance using REF (not closure state — avoids stale closure!)
+              const myLoc = myLocationRef.current;
+              if (myLoc) {
+                if (routeDistanceTimeoutRef.current) {
+                  clearTimeout(routeDistanceTimeoutRef.current);
+                }
+                routeDistanceTimeoutRef.current = setTimeout(() => {
+                  fetchRouteDistance(
+                    myLoc.latitude,
+                    myLoc.longitude,
+                    loc.latitude,
+                    loc.longitude
+                  );
+                }, 2000);
+              }
+
               setState((prev) => {
-                // Recompute distance using latest state
+                // Show haversine immediately
                 const km =
                   prev.myLocation
                     ? haversineDistance(
@@ -496,6 +581,9 @@ export function useLocationSharing() {
                   partnerIsSharing: true,
                   distanceKm: km,
                   distanceText: km ? formatDistance(km) : null,
+                  routeDistanceKm: null,
+                  routeDurationSec: null,
+                  isRouteDistance: false,
                 };
               });
             }
@@ -526,6 +614,15 @@ export function useLocationSharing() {
       client.disconnect();
     };
   }, [userId, fetchPartnerLocation]);
+
+  // Cleanup route distance timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (routeDistanceTimeoutRef.current) {
+        clearTimeout(routeDistanceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     ...state,

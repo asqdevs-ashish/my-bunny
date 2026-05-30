@@ -46,7 +46,7 @@ const notifItems: {
   {
     type: "mood",
     label: "Mood Check",
-    description: "Afternoon check-in — \"How are you feeling?\" 🥰",
+    description: "Daily check-in — asks how you're feeling at the right time 🥰",
     icon: Smile,
     color: "text-purple-500",
   },
