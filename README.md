@@ -1,4 +1,4 @@
-# 👩‍🍳 Suar's Care 💕
+# 👩‍🍳 MY BUNNY 💕
 
 A personalized **AI Food, Recipe & Wellness** companion built with ❤️.
 
