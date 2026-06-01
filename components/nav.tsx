@@ -12,7 +12,6 @@ import {
   MapPin,
   Sprout,
   LayoutDashboard,
-  Bot,
   Home,
   Menu,
   X,
@@ -45,7 +44,6 @@ const BOTTOM_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: Home, color: "text-rose-500" },
   { href: "/love-plant", label: "Plant", icon: Sprout, color: "text-emerald-500" },
   { href: "/location", label: "Map", icon: MapPin, requiresPartner: true, color: "text-blue-500" },
-  { href: "/chat", label: "AI Chef", icon: Bot, color: "text-amber-500" },
   { href: "/partner-chat", label: "Chat", icon: MessageCircle, requiresPartner: true, color: "text-rose-500" },
 ];
 
@@ -228,7 +226,6 @@ export function Nav() {
   // Compute nav item active states at top level (not inside .map)
   const lovePlantActive = isPathActive(pathname, "/love-plant");
   const locationActive = isPathActive(pathname, "/location");
-  const chatActive = isPathActive(pathname, "/chat");
   const partnerChatActive = isPathActive(pathname, "/partner-chat");
 
   const closeMenu = () => {
@@ -240,7 +237,7 @@ export function Nav() {
     <>
       {/* ─── TOP NAV BAR ─── */}
       <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 sm:h-16 max-w-6xl items-center justify-between px-3 sm:px-4">
+        <div className="mx-auto flex h-14 sm:h-16 max-w-7xl xl:max-w-[90rem] items-center justify-between px-3 sm:px-4 lg:px-6">
           {/* ── Left: Logo ── */}
           <Link href="/dashboard" className="flex items-center gap-2 group shrink-0">
             <div className="relative flex items-center justify-center">
@@ -253,13 +250,13 @@ export function Nav() {
                 className="relative rounded-xl shadow-sm group-hover:scale-105 transition-transform sm:w-[34px] sm:h-[34px]"
               />
             </div>
-            <span className="text-sm font-bold tracking-tight inline sm:text-base">
-              Suar&apos;s Care
+            <span className="text-sm font-bold tracking-tight inline sm:text-base lg:text-lg">
+              My Bunny
             </span>
           </Link>
 
           {/* ── Center: Desktop Nav Links ── */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-1 lg:gap-1.5">
             {[
               {
                 href: "/dashboard",
@@ -293,7 +290,7 @@ export function Nav() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all duration-200",
+                    "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs lg:text-sm font-medium transition-all duration-200",
                     item.isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
@@ -417,15 +414,6 @@ export function Nav() {
                           <span>Partner Chat</span>
                         </Link>
                       )}
-
-                      <Link
-                        href="/chat"
-                        onClick={closeMenu}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
-                      >
-                        <Bot className="h-4 w-4 text-amber-500" />
-                        <span>AI Chef</span>
-                      </Link>
                     </div>
 
                     <div className="my-1 border-t border-border/50" />
@@ -538,13 +526,6 @@ export function Nav() {
                         },
                       ]
                     : []),
-                  {
-                    href: "/chat",
-                    label: "AI Chef Chat",
-                    icon: Bot,
-                    color: "text-amber-500",
-                    isActive: chatActive,
-                  },
                   ...(partnerId
                     ? [
                         {

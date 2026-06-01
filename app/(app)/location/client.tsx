@@ -40,7 +40,7 @@ interface LocationClientProps {
 export function LocationClient({ userName = "You" }: LocationClientProps) {
   const { data: session } = useSession();
   const myName = session?.user?.name || userName;
-  const [partnerName, setPartnerName] = useState<string>("Bachha");
+  const [partnerName, setPartnerName] = useState<string>("Partner");
   const [partnerId, setPartnerId] = useState<string | null>(null);
   const [partnerHistory, setPartnerHistory] = useState<HistoryEntry[]>([]);
   const [geofenceZones, setGeofenceZones] = useState<GeofenceZoneData[]>([]);
@@ -185,7 +185,7 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-20 md:pb-6">
+      <main className="mx-auto max-w-7xl xl:max-w-[90rem] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 pb-20 md:pb-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -223,7 +223,7 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <div className="h-[400px] sm:h-[500px]">
+                  <div className="h-[400px] sm:h-[500px] lg:h-[600px]">
                     <LiveMap
                       myLocation={myLocation}
                       partnerLocation={partnerLocation}

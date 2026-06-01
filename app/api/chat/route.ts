@@ -133,7 +133,7 @@ export async function POST(req: Request) {
       : "No mood logged today yet.";
 
     // 5. Refined System Prompt with Love Plant Guidelines
-    const systemPrompt = `Tum Suar ka Kitchen AI ho 💕 — ek caring, witty, aur loving personal AI chef for a very special person.
+    const systemPrompt = `Tum My Bunny AI ho 💕 — ek caring, witty, aur loving personal AI chef for a very special person.
 
 🚨 **IMPORTANT — LANGUAGE RULES (FOLLOW STRICTLY):**
 1. **SPEAK NATURAL HINGLISH:** Tumhara response 70% Hindi aur 30% English mix hona chahiye. 

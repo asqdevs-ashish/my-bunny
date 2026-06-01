@@ -87,7 +87,7 @@ export default async function PartnerProfilePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="mx-auto max-w-4xl px-3 sm:px-4 py-4 sm:py-6 pb-20 md:pb-6">
+      <main className="mx-auto max-w-7xl xl:max-w-[90rem] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20 md:pb-6">
         <PartnerProfileClient data={serializedData} />
       </main>
     </div>

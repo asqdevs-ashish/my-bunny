@@ -88,7 +88,7 @@ export function TrackingStatus({
   isSharing,
   partnerIsSharing,
   wakeLockActive,
-  partnerName = "Bachha",
+  partnerName = "Partner",
   userName = "You",
   lastUpdatedAt,
   partnerLocationTimestamp,

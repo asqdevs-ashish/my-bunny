@@ -4,7 +4,6 @@ import { WaterTracker } from "@/components/water-tracker";
 import { MealLogger } from "@/components/meal-logger";
 import { LovePlant } from "@/components/love-plant";
 import { WeeklySummary } from "@/components/weekly-summary";
-import { FloatingChatButton } from "@/components/floating-chat-button";
 import { MoodSelector } from "@/components/mood-selector";
 import { LoveNotes } from "@/components/love-notes";
 import { MoodRecipes } from "@/components/mood-recipes";
@@ -62,10 +61,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-4 sm:py-6 pb-20 md:pb-6">
+      <main className="mx-auto max-w-7xl xl:max-w-[90rem] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20 md:pb-6">
         {/* ─── Welcome Header ─── */}
         <div className="animate-slide-up">
-          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-rose-50 via-amber-50 to-orange-50 dark:from-[#1a1a2e] dark:via-[#1a1a2e] dark:to-[#121212] shadow-xl shadow-rose-200/30 dark:shadow-amber-900/10">
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-rose-50 via-amber-50 to-orange-50 dark:from-[#1a1a2e] dark:via-[#1a1a2e] dark:to-[#121212] shadow-xl shadow-rose-200/30 dark:shadow-amber-900/10 xl:rounded-3xl">
             {/* Animated gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-r from-rose-200/10 via-transparent to-amber-200/10 dark:from-amber-500/5 dark:via-transparent dark:to-rose-500/5 animate-gradient" />
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -76,7 +75,7 @@ export default async function DashboardPage() {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">
-                    Suar 🥰
+                    My Bunny 🥰
                   </h1>
                   <p className="mt-1 sm:mt-2 text-xs sm:text-sm md:text-base text-muted-foreground max-w-lg leading-relaxed">
                     Your personal AI chef is ready to help you cook something
@@ -109,8 +108,8 @@ export default async function DashboardPage() {
         <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-5">
           {/* ── SECTION 1: Daily Check-ins ── */}
           <SectionDivider label="Daily Check-ins" icon={Sun} delay="0.05s" />
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
-            <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.1s" } as React.CSSProperties}>
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="animate-slide-up lg:col-span-2 xl:col-span-3" style={{ animationDelay: "0.1s" } as React.CSSProperties}>
               <MoodSelector />
             </div>
             <div className="animate-slide-up" style={{ animationDelay: "0.13s" } as React.CSSProperties}>
@@ -120,11 +119,11 @@ export default async function DashboardPage() {
 
           {/* ── SECTION 2: Nutrition & Growth ── */}
           <SectionDivider label="Nutrition &amp; Growth" icon={UtensilsCrossed} delay="0.16s" />
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-4">
             <div className="animate-slide-up" style={{ animationDelay: "0.19s" } as React.CSSProperties}>
               <MealLogger />
             </div>
-            <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.22s" } as React.CSSProperties}>
+            <div className="animate-slide-up lg:col-span-2 xl:col-span-3" style={{ animationDelay: "0.22s" } as React.CSSProperties}>
               <LovePlant />
             </div>
           </div>
@@ -139,18 +138,18 @@ export default async function DashboardPage() {
 
           {/* ── SECTION 4: Romance ── */}
           <SectionDivider label="Romance" icon={BookHeart} delay="0.31s" />
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
-            <div className="animate-slide-up lg:col-span-1" style={{ animationDelay: "0.34s" } as React.CSSProperties}>
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="animate-slide-up lg:col-span-1 xl:col-span-2" style={{ animationDelay: "0.34s" } as React.CSSProperties}>
               <SecretNoteExchange />
             </div>
-            <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.37s" } as React.CSSProperties}>
+            <div className="animate-slide-up lg:col-span-2 xl:col-span-3" style={{ animationDelay: "0.37s" } as React.CSSProperties}>
               <MemoryScrapbook />
             </div>
           </div>
 
           {/* ── SECTION 5: Inspiration ── */}
           <SectionDivider label="Inspiration" icon={Music} delay="0.4s" />
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-3">
             <div className="animate-slide-up" style={{ animationDelay: "0.43s" } as React.CSSProperties}>
               <LoveNotes />
             </div>
@@ -171,9 +170,6 @@ export default async function DashboardPage() {
           </div>
         </div>
       </main>
-
-      {/* Floating Chat Button */}
-      <FloatingChatButton />
     </div>
   );
 }

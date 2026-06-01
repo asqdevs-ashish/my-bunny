@@ -11,7 +11,7 @@ export default async function ChatPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-hidden px-0 sm:px-4 md:py-5 pb-16 md:pb-0">
+      <main className="mx-auto flex w-full max-w-7xl xl:max-w-[90rem] flex-1 flex-col overflow-hidden px-0 sm:px-4 lg:px-6 md:py-5 pb-16 md:pb-0">
         <ChatInterface />
       </main>
     </div>

@@ -453,3 +453,28 @@ html {
   width: 100%;
   height: 100%;
 }
+
+/* ─── Large screen refinements (27" / 2560px+) ─────────────── */
+@media (min-width: 1536px) {
+  /* Subtle background texture for ultrawide */
+  body {
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(244, 63, 94, 0.02) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(217, 168, 83, 0.02) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  .dark body,
+  .dark {
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(212, 168, 83, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(244, 63, 94, 0.02) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+/* ─── Print styles ─────────────────────────────────────────── */
+@media print {
+  .no-print, nav, footer, .fixed { display: none !important; }
+  body { background: white !important; color: black !important; }
+}

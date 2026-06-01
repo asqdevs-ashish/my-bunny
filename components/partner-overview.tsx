@@ -292,7 +292,7 @@ export function PartnerOverview() {
             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30 animate-pulse-soft">
               <Heart className="h-3.5 w-3.5 text-rose-500" fill="currentColor" />
             </div>
-            {partner.name || "Bachha"}
+            {partner.name || "Partner"}
           </CardTitle>
           <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover/card:opacity-100 transition-opacity" />
         </div>

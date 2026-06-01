@@ -75,7 +75,7 @@ export function formatWeeklyForShare(data: ShareWeeklyData): string {
     year: "numeric",
   });
 
-  let text = `📊 *Suar's Care — Weekly Summary*\n`;
+  let text = `📊 *My Bunny — Weekly Summary*\n`;
   text += `📅 Week ending: ${weekEnd}\n`;
   text += `━━━━━━━━━━━━━━━━━\n\n`;
 
@@ -127,14 +127,14 @@ export function formatWeeklyForShare(data: ShareWeeklyData): string {
   }
 
   text += `━━━━━━━━━━━━━━━━━\n`;
-  text += `Made with ❤️ by Suar's Care 🍳\n`;
+  text += `Made with ❤️ by My Bunny 🍳\n`;
 
   return text;
 }
 
 /** Format app sharing text */
 export function formatShareAppText(): string {
-  return `👩‍👧 *Suar's Care — Share with You!*\n\nHey baby! I've been using Suar's Care to track my meals, mood, and wellness journey. Come check it out! 🍳💕\n\nFeatures:\n🍽️ Meal & Mood Tracking\n💧 Hydration Reminders\n🥘 AI Recipe Suggestions\n📊 Weekly Summaries\n\nIt's made just for us! 🥰`;
+  return `👩‍👧 *My Bunny — Share with You!*\n\nHey baby! I've been using My Bunny to track my meals, mood, and wellness journey. Come check it out! 🍳💕\n\nFeatures:\n🍽️ Meal & Mood Tracking\n💧 Hydration Reminders\n🥘 AI Recipe Suggestions\n📊 Weekly Summaries\n\nIt's made just for us! 🥰`;
 }
 
 /** Data for daily overview */
@@ -176,7 +176,7 @@ export function formatDailyOverview(data: DailyOverviewData): string {
     year: "numeric",
   });
 
-  let text = `💕 *Suar's Care — Daily Update*\n`;
+  let text = `💕 *My Bunny — Daily Update*\n`;
   text += `📅 ${today}\n`;
   text += `━━━━━━━━━━━━━━━━━\n\n`;
 
@@ -222,7 +222,7 @@ export function formatDailyOverview(data: DailyOverviewData): string {
   }
 
   text += `\n━━━━━━━━━━━━━━━━━\n`;
-  text += `Made with ❤️ by Suar's Care 🍳`;
+  text += `Made with ❤️ by My Bunny 🍳`;
 
   return text;
 }

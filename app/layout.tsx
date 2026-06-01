@@ -23,12 +23,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Suar's Care 💕",
+  title: "My Bunny 💕",
   description:
-    "A personalized AI Food, Recipe & Wellness app made with love ❤️",
+    "A personalized wellness & relationship app made with love ❤️",
   openGraph: {
-    title: "Suar's Care 💕",
-    description: "Your Personal Suar & Wellness Companion",
+    title: "My Bunny 💕",
+    description: "Your Personal Wellness & Relationship Companion",
     type: "website",
   },
 };
@@ -57,7 +57,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.jpeg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Suar's Care" />
+        <meta name="apple-mobile-web-app-title" content="My Bunny" />
       </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <SessionProvider>

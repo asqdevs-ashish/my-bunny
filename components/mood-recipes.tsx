@@ -1,8 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChefHat, ExternalLink, MessageCircle, CirclePlay } from "lucide-react";
-import Link from "next/link";
+import { ChefHat, ExternalLink, CirclePlay } from "lucide-react";
 import { useMood } from "@/lib/use-mood";
 
 interface RecipeSuggestion {
@@ -188,15 +187,7 @@ export function MoodRecipes() {
           ))}
         </div>
 
-        <div className="pt-1">
-          <Link
-            href="/chat"
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-rose-50 to-amber-50 dark:from-rose-900/10 dark:to-amber-900/10 border border-rose-200 dark:border-rose-800/40 px-3 py-2.5 text-xs font-medium text-rose-600 dark:text-rose-400 hover:from-rose-100 hover:to-amber-100 dark:hover:from-rose-900/20 dark:hover:to-amber-900/20 hover:shadow-md transition-all active:scale-[0.98]"
-          >
-            <MessageCircle className="h-3.5 w-3.5" />
-            Aur suggestions chahiye? Chat with Suar! 💕
-          </Link>
-        </div>
+
       </CardContent>
     </Card>
   );

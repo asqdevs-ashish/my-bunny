@@ -1,5 +1,7 @@
 import NextAuth from "next-auth";
+import type { Provider } from "next-auth/providers";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
@@ -8,7 +10,6 @@ import { prisma } from "@/lib/prisma";
  * If the promise doesn't settle within `ms` milliseconds, it rejects with a timeout error.
  */
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  // Prevent unhandled rejection if the original promise rejects after the timeout fires
   promise.catch(() => {});
   return Promise.race([
     promise,
@@ -18,136 +19,113 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [
-    Credentials({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-        const email = (credentials.email as string).trim().toLowerCase();
-        const password = credentials.password as string;
+const authProviders: Provider[] = [
+  Credentials({
+    name: "credentials",
+    credentials: {
+      email: { label: "Email", type: "email" },
+      password: { label: "Password", type: "password" },
+    },
+    async authorize(credentials) {
+      if (!credentials?.email || !credentials?.password) return null;
 
-        // Try to find user in database (with 5s timeout so it doesn't hang on Vercel)
-        try {
-          const db = prisma;
-          if (db) {
-            const user = await withTimeout(
-              db.user.findUnique({ where: { email } }),
-              5000,
-              "findUnique"
-            );
+      const email = (credentials.email as string).trim().toLowerCase();
+      const password = credentials.password as string;
 
-            if (user) {
-              // Compare password
-              const isValid = await bcrypt.compare(password, user.password);
-              if (isValid) {
-                return {
-                  id: user.id,
-                  name: user.name,
-                  email: user.email,
-                };
-              }
-              // If DB user exists but password mismatch, continue to env fallback
-            }
-          }
-        } catch (error) {
-          console.error("DB auth failed, falling back to env vars:", error);
-        }
+      try {
+        const db = prisma;
+        if (!db) return null;
 
-        // Fallback: check against environment variables (for initial setup)
-        const myEmail = process.env.MY_EMAIL || process.env.GF_EMAIL;
-        const myPassword = process.env.MY_PASSWORD || process.env.GF_PASSWORD;
-        const partnerEmail = process.env.PARTNER_EMAIL;
-        const partnerPassword = process.env.PARTNER_PASSWORD;
+        const user = await withTimeout(
+          db.user.findUnique({ where: { email } }),
+          5000,
+          "findUnique"
+        );
 
-        let fallbackUser = null;
+        if (!user) return null;
 
-        // Check if this is user 1 (Kuchupuchdi)
-        if (myEmail && email === myEmail.trim().toLowerCase()) {
-          const isValid =
-            password === myPassword ||
-            (myPassword ? await bcrypt.compare(password, myPassword).catch(() => false) : false);
-          if (isValid) {
-            fallbackUser = { name: "Kuchupuchdi", email: myEmail };
-          }
-        }
+        const isValid = await bcrypt.compare(password, user.password);
+        if (!isValid) return null;
 
-        // Check if this is user 2 (Bachha)
-        if (partnerEmail && email === partnerEmail.trim().toLowerCase()) {
-          const isValid =
-            password === partnerPassword ||
-            (partnerPassword ? await bcrypt.compare(password, partnerPassword).catch(() => false) : false);
-          if (isValid) {
-            fallbackUser = { name: "Bachha", email: partnerEmail };
-          }
-        }
-
-        if (fallbackUser) {
-          // Resolve or create in DB to get a real ID (with 5s timeout)
-          try {
-            const db = prisma;
-            if (db) {
-              const user = await withTimeout(
-                db.user.upsert({
-                  where: { email: fallbackUser.email },
-                  update: { name: fallbackUser.name },
-                  create: {
-                    name: fallbackUser.name,
-                    email: fallbackUser.email,
-                    password: await bcrypt.hash(password, 10),
-                  },
-                }),
-                5000,
-                "upsert"
-              );
-              return {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-              };
-            }
-          } catch (error) {
-            console.error("Failed to sync fallback user to DB:", error);
-          }
-
-          // Return with static ID if DB is unavailable or upsert failed
-          // This ensures login works even when Prisma/Database is down
-          return {
-            id: fallbackUser.email === myEmail ? "1" : "2",
-            name: fallbackUser.name,
-            email: fallbackUser.email,
-          };
-        }
-
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        };
+      } catch (error) {
+        console.error("DB auth failed:", error);
         return null;
-      },
-    }),
-  ],
+      }
+    },
+  }),
+];
+
+// Only add Google provider if credentials are configured
+if (googleClientId && googleClientSecret) {
+  authProviders.push(
+    Google({
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+    })
+  );
+} else {
+  console.info("ℹ️ Google OAuth not configured — skipping Google provider");
+}
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers: authProviders,
   pages: {
     signIn: "/login",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account }) {
+      // For Google sign-in, create or update user in DB
+      if (account?.provider === "google" && user.email) {
+        try {
+          const db = prisma;
+          if (db) {
+            await db.user.upsert({
+              where: { email: user.email },
+              update: {
+                name: user.name || "User",
+              },
+              create: {
+                name: user.name || "User",
+                email: user.email,
+                password: await bcrypt.hash(
+                  `google-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                  10
+                ),
+              },
+            });
+          }
+        } catch (error) {
+          console.error("Failed to upsert Google user:", error);
+          return false;
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
-      } else if (token.id) {
-        // Refresh user info from DB if possible (with 3s timeout)
+      } else if (token.email) {
+        // Refresh user info from DB if possible
         try {
           const db = prisma;
-          if (db && token.id !== "1" && token.id !== "2") {
+          if (db) {
             const dbUser = await withTimeout(
-              db.user.findUnique({ where: { id: token.id as string } }),
+              db.user.findUnique({ where: { email: token.email as string } }),
               3000,
               "jwt-findUnique"
             );
             if (dbUser) {
+              token.id = dbUser.id;
               token.name = dbUser.name;
               token.email = dbUser.email;
             }
@@ -162,6 +140,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.name = token.name;
+        session.user.email = token.email as string;
       }
       return session;
     },

@@ -47,7 +47,7 @@ export default function NotFound() {
 
         {/* Footer */}
         <div className="mt-12 flex items-center justify-center gap-1.5 text-xs text-muted-foreground/50">
-          Made with <Heart className="h-3 w-3 text-rose-400" fill="currentColor" /> by Suar
+          Made with <Heart className="h-3 w-3 text-rose-400" fill="currentColor" /> by My Bunny
         </div>
       </div>
     </div>

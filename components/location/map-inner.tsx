@@ -121,7 +121,7 @@ interface LiveMapInnerProps {
 export function LiveMapInner({
   myLocation,
   partnerLocation,
-  partnerName = "Bachha",
+  partnerName = "Partner",
   userName = "You",
   partnerHistory = [],
   geofenceZones = [],
@@ -627,10 +627,10 @@ function MapControls({
             <button
               onClick={(e) => { e.stopPropagation(); handleZoomToPartner(); }}
               className="flex items-center justify-center w-full gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 active:scale-95 transition-all"
-              title={`Zoom to ${partnerName || "Bachha"}'s location`}
+              title={`Zoom to ${partnerName || "Partner"}'s location`}
             >
               <Crosshair className="h-3.5 w-3.5 text-rose-500" />
-              <span>{partnerName || "Bachha"}</span>
+              <span>{partnerName || "Partner"}</span>
             </button>
             <div className="h-px bg-border/40 mx-1" />
           </>

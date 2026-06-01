@@ -9,7 +9,7 @@ import { Sprout, Heart, Sparkles, TrendingUp, LayoutDashboard, Swords } from "lu
 export default async function LovePlantPage() {
   return (
     <div className="min-h-screen bg-background">
-      <main className="mx-auto max-w-4xl px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-20 md:pb-6">
+      <main className="mx-auto max-w-7xl xl:max-w-[90rem] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 pb-20 md:pb-6">
         {/* Header */}
         <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-emerald-50 via-green-50 to-amber-50 dark:from-[#0a1a0f] dark:via-[#0d1f12] dark:to-[#1a1a0a] shadow-xl shadow-emerald-200/30 dark:shadow-emerald-900/10">
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-200/10 via-transparent to-amber-200/10 dark:from-emerald-500/5 dark:via-transparent dark:to-amber-500/5 animate-gradient" />
@@ -78,14 +78,14 @@ export default async function LovePlantPage() {
         </div>
 
         {/* Main content grid */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-4">
           {/* Love Plant — spans full width */}
-          <div className="lg:col-span-3 animate-slide-up">
+          <div className="lg:col-span-3 xl:col-span-4 animate-slide-up">
             <LovePlant />
           </div>
 
           {/* Partner Challenge VS — spans full width */}
-          <div className="lg:col-span-3 animate-slide-up" style={{ animationDelay: "0.05s" } as React.CSSProperties}>
+          <div className="lg:col-span-3 xl:col-span-4 animate-slide-up" style={{ animationDelay: "0.05s" } as React.CSSProperties}>
             <PartnerVs />
           </div>
 
@@ -93,7 +93,7 @@ export default async function LovePlantPage() {
           <div className="animate-slide-up" style={{ animationDelay: "0.1s" } as React.CSSProperties}>
             <WaterTracker />
           </div>
-          <div className="animate-slide-up lg:col-span-2" style={{ animationDelay: "0.15s" } as React.CSSProperties}>
+          <div className="animate-slide-up lg:col-span-2 xl:col-span-3" style={{ animationDelay: "0.15s" } as React.CSSProperties}>
             <MealLogger />
           </div>
         </div>

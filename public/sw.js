@@ -45,8 +45,8 @@ self.addEventListener("push", (event) => {
         tag: data.tag || "chef-cupid",
         requireInteraction: true, // Keep notification visible until user interacts
       };
-      // Title from push data (now "Suar's Care 💕" from web-push.ts)
-      event.waitUntil(self.registration.showNotification(data.title || "Suar's Care 💕", options));
+      // Title from push data (now "My Bunny 💕" from web-push.ts)
+      event.waitUntil(self.registration.showNotification(data.title || "My Bunny 💕", options));
     } catch {
       // If not JSON, show raw text
       const options = {
@@ -55,7 +55,7 @@ self.addEventListener("push", (event) => {
         badge: "/icon-192.jpeg",
         vibrate: [100, 50, 100],
       };
-      event.waitUntil(self.registration.showNotification("Suar's Care 💕", options));
+      event.waitUntil(self.registration.showNotification("My Bunny 💕", options));
     }
   }
 });

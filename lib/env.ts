@@ -21,13 +21,6 @@ const CRON_VARS = [
   "CRON_SECRET",
 ] as const;
 
-const AUTH_VARS = [
-  "MY_EMAIL",
-  "MY_PASSWORD",
-  "PARTNER_EMAIL",
-  "PARTNER_PASSWORD",
-] as const;
-
 const CLOUDINARY_VARS = [
   "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME",
   "NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET",
@@ -50,17 +43,6 @@ export function checkEnv(): EnvCheckResult[] {
     } else {
       results.push({ var: v, status: "ok" });
     }
-  }
-
-  // Check if auth fallback vars are set (at least one pair)
-  const authEmail = process.env.MY_EMAIL || process.env.GF_EMAIL;
-  const authPassword = process.env.MY_PASSWORD || process.env.GF_PASSWORD;
-  if (!authEmail || !authPassword) {
-    results.push({
-      var: "MY_EMAIL / MY_PASSWORD",
-      status: "optional",
-      note: "Not set. Use DATABASE_URL with a seeded DB instead, or set these for env-var-based auth.",
-    });
   }
 
   for (const v of PUSH_VARS) {
@@ -113,11 +95,4 @@ export function isPushConfigured(): boolean {
   return !!(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 }
 
-/**
- * Whether auth fallback env vars are configured.
- */
-export function isAuthFallbackConfigured(): boolean {
-  const email = process.env.MY_EMAIL || process.env.GF_EMAIL;
-  const password = process.env.MY_PASSWORD || process.env.GF_PASSWORD;
-  return !!(email && password);
-}
+

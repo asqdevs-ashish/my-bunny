@@ -7,7 +7,7 @@ import webpush from "web-push";
 function createWebPush() {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT || "mailto:admin@suarskitchen.app";
+  const subject = process.env.VAPID_SUBJECT || "mailto:admin@mybunny.app";
 
   if (!publicKey || !privateKey) {
     console.warn(
@@ -38,14 +38,14 @@ export async function sendPushNotification(
   if (!webPush) return false;
 
   try {
-    // Always use "Suar's Care 💕" as the notification title so that
+    // Always use "My Bunny 💕" as the notification title so that
     // on Android (even if PWA not installed), the notification shows the
     // app name prominently instead of the browser name.
     // The original title (e.g., "💧 Water Reminder") is shown in the body.
     await webPush.sendNotification(
       subscription as webpush.PushSubscription,
       JSON.stringify({
-        title: "Suar's Care 💕",
+        title: "My Bunny 💕",
         body: `${payload.title} — ${payload.body}`,
         url: payload.url || "/dashboard",
         tag: payload.tag || "partner-message",

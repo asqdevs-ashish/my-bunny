@@ -32,7 +32,7 @@ interface LocationTimelineProps {
 // ─── Component ────────────────────────────────────────────────
 
 export function LocationTimeline({
-  partnerName = "Bachha",
+  partnerName = "Partner",
   autoRefresh = false,
 }: LocationTimelineProps) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);

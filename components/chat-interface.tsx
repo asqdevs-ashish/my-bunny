@@ -410,7 +410,7 @@ export function ChatInterface() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-sm font-semibold sm:text-base">
-              Suar's Care AI
+              My Bunny AI
             </h2>
             <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:text-green-400">
               <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />

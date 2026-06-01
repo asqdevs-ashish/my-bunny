@@ -289,7 +289,7 @@ export function LovePlantHistory() {
                   <p className="text-xs font-medium text-amber-500 tabular-nums">🍽️ {totalMeals1}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">{partnerName || "Bachha"}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">{partnerName || "Partner"}</p>
                   <p className="text-xs font-medium text-blue-500 tabular-nums">💧 {totalWater2}</p>
                   <p className="text-xs font-medium text-amber-500 tabular-nums">🍽️ {totalMeals2}</p>
                 </div>

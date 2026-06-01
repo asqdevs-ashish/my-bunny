@@ -1,23 +1,21 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, UtensilsCrossed, Sparkles, ArrowRight } from "lucide-react";
+import { Heart, UtensilsCrossed, Sparkles, UserPlus, ArrowRight } from "lucide-react";
 
-function LoginForm() {
+export default function RegisterPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -25,6 +23,21 @@ function LoginForm() {
     setLoading(true);
 
     try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Registration failed");
+        setLoading(false);
+        return;
+      }
+
+      // Auto-login after successful registration
       const result = await signIn("credentials", {
         email,
         password,
@@ -32,23 +45,17 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password. Please try again!");
+        setError("Account created but login failed. Please try logging in.");
         setLoading(false);
         return;
       }
 
-      router.push(callbackUrl);
+      router.push("/dashboard");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again!");
       setLoading(false);
     }
-  }
-
-  async function handleGoogleSignIn() {
-    setGoogleLoading(true);
-    setError("");
-    await signIn("google", { callbackUrl });
   }
 
   return (
@@ -63,55 +70,35 @@ function LoginForm() {
       <Card className="relative w-full max-w-md lg:max-w-lg xl:max-w-xl animate-slide-up border-0 bg-white/80 backdrop-blur-xl dark:bg-[#1a1a2e]/80 shadow-2xl shadow-rose-200/50 dark:shadow-amber-900/20 rounded-2xl xl:rounded-3xl">
         <CardHeader className="text-center pb-2 pt-6 sm:pt-8">
           <div className="mx-auto mb-3 sm:mb-4 flex h-16 w-16 sm:h-20 sm:w-20 lg:h-24 lg:w-24 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-amber-400 dark:from-amber-500 dark:to-yellow-500 shadow-lg animate-float">
-            <Heart className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-white" fill="white" />
+            <UserPlus className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-white" />
           </div>
           <CardTitle className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-rose-500 to-amber-500 dark:from-amber-400 dark:to-yellow-400 bg-clip-text text-transparent">
-            Welcome Back
+            Create Account
           </CardTitle>
           <CardDescription className="text-base mt-2 text-muted-foreground">
             <span className="flex items-center justify-center gap-2">
-              <UtensilsCrossed className="h-4 w-4" />
-              Sign in to My Bunny
               <Sparkles className="h-4 w-4" />
+              Join My Bunny
+              <UtensilsCrossed className="h-4 w-4" />
             </span>
           </CardDescription>
         </CardHeader>
-        <CardContent className="px-4 sm:px-8 pb-6 sm:pb-8 pt-4 space-y-4">
-          {/* Google Sign-In */}
-          <Button
-            onClick={handleGoogleSignIn}
-            disabled={googleLoading}
-            variant="outline"
-            className="w-full h-12 text-base border-2 hover:bg-secondary/50 transition-all"
-          >
-            {googleLoading ? (
-              <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            ) : (
-              <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-              </svg>
-            )}
-            Continue with Google
-          </Button>
-
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
+        <CardContent className="px-4 sm:px-8 pb-6 sm:pb-8 pt-4">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground/80">
+                Your Name
+              </label>
+              <Input
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                minLength={1}
+                className="bg-white/50 dark:bg-black/20 border-rose-200/50 dark:border-amber-900/30 focus:border-rose-400 dark:focus:border-amber-500"
+              />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
-            </div>
-          </div>
-
-          {/* Email/Password Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground/80">
                 Email
@@ -131,10 +118,11 @@ function LoginForm() {
               </label>
               <Input
                 type="password"
-                placeholder="••••••••"
+                placeholder="At least 6 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
                 className="bg-white/50 dark:bg-black/20 border-rose-200/50 dark:border-amber-900/30 focus:border-rose-400 dark:focus:border-amber-500"
               />
             </div>
@@ -156,26 +144,25 @@ function LoginForm() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Logging in...
+                  Creating account...
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
-                  <Heart className="h-5 w-5" fill="currentColor" />
-                  Sign In
+                  <UserPlus className="h-5 w-5" />
+                  Create Account
                 </span>
               )}
             </Button>
           </form>
 
-          {/* Register Link */}
-          <div className="text-center pt-2">
+          <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
+              Already have an account?{" "}
               <Link
-                href="/register"
+                href="/login"
                 className="font-medium text-rose-500 hover:text-rose-600 dark:text-amber-400 dark:hover:text-amber-300 transition-colors inline-flex items-center gap-1"
               >
-                Create one
+                Sign in
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </p>
@@ -187,15 +174,5 @@ function LoginForm() {
         Made with ❤️ just for you
       </p>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-[#fffbf5] dark:bg-[#121212]" />
-    }>
-      <LoginForm />
-    </Suspense>
   );
 }

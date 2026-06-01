@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Suar's Care 💕",
-    short_name: "Suar's Care",
+    name: "My Bunny 💕",
+    short_name: "My Bunny",
     description:
-      "Your personal Suar for Food",
+      "Your personal wellness companion",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#fffbf5",
@@ -31,6 +31,6 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "maskable",
       },
     ],
-    categories: ["food", "health", "lifestyle"],
+    categories: ["health", "lifestyle", "wellness"],
   };
 }

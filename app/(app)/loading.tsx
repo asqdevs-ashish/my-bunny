@@ -1,4 +1,4 @@
-// ─── Loading Skeleton for Suar's Care ────────────────────────
+// ─── Loading Skeleton for My Bunny ────────────────────────
 // Shows shimmer-animated skeleton cards while pages load.
 // The Nav (from layout) stays visible during loading.
 

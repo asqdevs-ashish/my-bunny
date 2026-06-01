@@ -113,7 +113,7 @@ export function ShareButton() {
               <span className="text-sm font-medium text-foreground">Copied! ✅</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Ab yeh WhatsApp pe bhej do apne Suar ko! 💬
+              Ab yeh WhatsApp pe bhej do apne partner ko! 💬
             </p>
             <div className="mt-2 flex items-center justify-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 animate-pulse">
               <MessageCircle className="h-3 w-3" />
@@ -133,7 +133,7 @@ export function ShareButton() {
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Now paste &amp; send to your Suar 💕
+              Now paste &amp; send to your partner 💕
             </p>
           </div>
         </div>

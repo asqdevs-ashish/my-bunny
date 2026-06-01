@@ -19,7 +19,7 @@ interface DistanceBadgeProps {
 export function DistanceBadge({
   distanceKm,
   partnerIsSharing,
-  partnerName = "Bachha",
+  partnerName = "Partner",
   routeDistanceKm,
   routeDurationSec,
   isRouteDistance = false,

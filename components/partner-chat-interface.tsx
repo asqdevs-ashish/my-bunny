@@ -14,7 +14,6 @@ import {
   CheckCheck,
   X,
   MessageCircle,
-  ChefHat,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -317,17 +316,6 @@ export function PartnerChatInterface({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Link to AI Chef Chat */}
-          {fullScreen && (
-            <Link
-              href="/chat"
-              className="hidden sm:flex items-center gap-1.5 rounded-full border border-border/60 bg-secondary/50 px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-all hover:bg-secondary hover:text-foreground hover:shadow-sm active:scale-95"
-            >
-              <ChefHat className="h-3.5 w-3.5" />
-              AI Chef
-            </Link>
-          )}
-
           {/* Close Button */}
           <Link
             href="/dashboard"
