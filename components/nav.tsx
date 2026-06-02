@@ -18,12 +18,14 @@ import {
   Camera,
   Trash2,
   Loader2,
+  Settings,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ProfileSettings } from "@/components/profile-settings";
 
 // ─── Helpers ─────────────────────────────────────────────────
 interface NavItem {
@@ -175,6 +177,7 @@ export function Nav() {
   // Profile image management
   const [pfpUploading, setPfpUploading] = useState(false);
   const [pfpDeleting, setPfpDeleting] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const userImage = session?.user?.image ?? undefined;
 
@@ -571,6 +574,18 @@ export function Nav() {
                       )}
                     </div>
 
+                    {/* Settings */}
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setSettingsOpen(true);
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                      <span>Settings</span>
+                    </button>
+
                     <div className="my-1 border-t border-border/50" />
 
                     {/* Theme Toggle */}
@@ -800,6 +815,9 @@ export function Nav() {
 
       {/* ─── MOBILE BOTTOM NAV ─── */}
       <MobileBottomNav partnerId={partnerId} pathname={pathname} />
+
+      {/* Profile Settings Modal */}
+      <ProfileSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }

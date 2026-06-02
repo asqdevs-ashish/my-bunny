@@ -1,49 +1,86 @@
 // ─── Email Utility ────────────────────────────────────────────
-// Sends OTP emails via Resend API.
-// Falls back to console.log in dev mode if RESEND_API_KEY is not set.
+// Sends OTP emails via Nodemailer (SMTP).
+// Falls back to console.log in dev mode if SMTP credentials are not set.
+//
+// Required env vars for production:
+//   SMTP_HOST     — SMTP server (default: smtp.gmail.com)
+//   SMTP_PORT     — SMTP port (default: 587)
+//   SMTP_USER     — SMTP username (e.g. your Gmail address)
+//   SMTP_PASS     — SMTP password (e.g. Gmail App Password)
+//   EMAIL_FROM    — sender address (default: "My Bunny <noreply@mybunny.app>")
+
+import nodemailer from "nodemailer";
 
 const FROM_EMAIL = process.env.EMAIL_FROM || "My Bunny <noreply@mybunny.app>";
+
+/** Get a Nodemailer transporter (lazily created) */
+let _transporter: nodemailer.Transporter | null = null;
+function getTransporter(): nodemailer.Transporter | null {
+  if (_transporter) return _transporter;
+
+  const host = process.env.SMTP_HOST;
+  const port = process.env.SMTP_PORT;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!host || !port || !user || !pass) {
+    console.log(
+      "ℹ️ SMTP not configured — OTP emails will be logged to console. " +
+      "Set SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS to send real emails."
+    );
+    return null;
+  }
+
+  _transporter = nodemailer.createTransport({
+    host,
+    port: parseInt(port, 10),
+    secure: parseInt(port, 10) === 465, // true for 465, false for others
+    auth: { user, pass },
+  });
+
+  return _transporter;
+}
+
+/** Verify SMTP connection (call once at startup) */
+export async function verifySmtpConnection(): Promise<boolean> {
+  const transporter = getTransporter();
+  if (!transporter) return false;
+  try {
+    await transporter.verify();
+    return true;
+  } catch (error) {
+    console.error("SMTP connection verification failed:", error);
+    return false;
+  }
+}
 
 /**
  * Send an OTP verification email.
  * Returns true if sent successfully (or logged in dev mode).
  */
 export async function sendOTPEmail(email: string, otp: string): Promise<boolean> {
-  const resendApiKey = process.env.RESEND_API_KEY;
+  const transporter = getTransporter();
 
   // Dev mode — just log the OTP to console
-  if (!resendApiKey) {
+  if (!transporter) {
     console.log(`\n📧 ═══════════════════════════════════════════`);
     console.log(`   OTP for ${email}: ${otp}`);
-    console.log(`   (Set RESEND_API_KEY to send emails in production)`);
+    console.log(`   (Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS to send real emails)`);
     console.log(`═══════════════════════════════════════════════\n`);
     return true;
   }
 
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: email,
-        subject: "Your My Bunny verification code",
-        html: otpEmailTemplate(otp),
-      }),
+    await transporter.sendMail({
+      from: FROM_EMAIL,
+      to: email,
+      subject: "Your My Bunny verification code",
+      html: otpEmailTemplate(otp),
     });
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "Unknown error");
-      console.error("Failed to send OTP email:", res.status, errText);
-      return false;
-    }
 
     return true;
   } catch (error) {
-    console.error("Failed to send OTP email:", error);
+    console.error("Failed to send OTP email via Nodemailer:", error);
     return false;
   }
 }

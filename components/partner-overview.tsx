@@ -225,20 +225,20 @@ export function PartnerOverview() {
                 <p className="text-xs font-medium text-muted-foreground">
                   Step 2: Enter your partner&apos;s code
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     placeholder="Enter 6-digit code"
                     value={codeInput}
                     onChange={(e) => setCodeInput(e.target.value)}
                     maxLength={6}
-                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-center font-mono text-lg tracking-widest outline-none focus:border-rose-300 dark:focus:border-rose-700 focus:ring-1 focus:ring-rose-300/30"
+                    className="w-full sm:flex-1 rounded-lg border border-border bg-background px-3 py-2.5 text-center font-mono text-lg tracking-widest outline-none focus:border-rose-300 dark:focus:border-rose-700 focus:ring-1 focus:ring-rose-300/30"
                   />
                   <Button
                     onClick={handleLinkPartner}
                     disabled={codeInput.length !== 6 || linking}
-                    size="sm"
-                    className="gap-2 bg-rose-500 hover:bg-rose-600 text-white"
+                    size="default"
+                    className="w-full sm:w-auto gap-2 bg-rose-500 hover:bg-rose-600 text-white"
                   >
                     {linking ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
