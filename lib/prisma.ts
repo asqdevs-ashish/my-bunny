@@ -5,10 +5,25 @@ let prisma: PrismaClient | null = null;
 
 function createPrismaClient(): PrismaClient | null {
   try {
-    const adapter = new PrismaPg({
-      connectionString: process.env.DATABASE_URL,
-    });
+    const url = process.env.DATABASE_URL;
+    if (!url) {
+      console.warn(
+        "⚠️ DATABASE_URL not set. Database features will be unavailable."
+      );
+      return null;
+    }
+
+    const adapter = new PrismaPg({ connectionString: url });
     const client = new PrismaClient({ adapter });
+    // ⚠️ Connection pooling is handled by the DATABASE_URL itself:
+    //   - Neon: pooled URL has ?pgbouncer=true (PgBouncer on server side)
+    //   - Supabase: pooled URL uses port 6543 (Supavisor on server side)
+    //
+    // Migrations ke liye "DATABASE_URL_UNPOOLED" env var use karo
+    // (direct URL without pooler). Example:
+    //   DATABASE_URL=postgresql://...@ep-xxx-pooler.aws.neon.tech/db?pgbouncer=true
+    //   DATABASE_URL_UNPOOLED=postgresql://...@ep-xxx.aws.neon.tech/db
+
     return client;
   } catch (error) {
     console.warn(
@@ -33,7 +48,9 @@ const prismaProxy = new Proxy({} as PrismaClient, {
     const client = getPrisma();
     if (!client) {
       if (process.env.NODE_ENV === "production") {
-        console.warn(`⚠️ Prisma accessed (${String(prop)}) but not initialized`);
+        console.warn(
+          `⚠️ Prisma accessed (${String(prop)}) but not initialized`
+        );
       }
       return async () => {
         throw new Error("Database not available");

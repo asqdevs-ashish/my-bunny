@@ -10,9 +10,9 @@ import { sendPushNotification } from "@/lib/web-push";
 const MEAL_GOAL = 3;
 const HEALTH_RANGE = { min: 0, max: 100 };
 
-export type PlantStage = "SEED" | "SPROUT" | "PLANT" | "FLOWER";
+type PlantStage = "SEED" | "SPROUT" | "PLANT" | "FLOWER";
 
-export type AchievementType =
+type AchievementType =
   | "first_bloom"
   | "three_day_streak"
   | "seven_day_streak"
@@ -20,7 +20,7 @@ export type AchievementType =
   | "water_warriors"
   | "meal_masters";
 
-export const ACHIEVEMENT_META: Record<
+const ACHIEVEMENT_META: Record<
   AchievementType,
   { label: string; emoji: string; description: string }
 > = {
@@ -112,48 +112,23 @@ async function computePartnerProgress(
   return { water, meals, score };
 }
 
-// ─── Helper: compute daily streak for both partners ──────────
-async function computeStreak(
-  user1Id: string,
-  user2Id: string
-): Promise<number> {
+// ─── Helper: compute daily streak from snapshots (1 query — was 120!) ──
+// 🔥 OPTIMIZED: Was 120 queries (30 days x 4 queries), now 1 query
+async function computeStreakFromSnapshots(coupleKey: string): Promise<number> {
   const db = prisma;
   if (!db) return 0;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const snapshots = await db.lovePlantDailySnapshot.findMany({
+    where: { coupleKey },
+    orderBy: { date: "desc" },
+    take: 30,
+  });
 
   let streak = 0;
-
-  for (let daysAgo = 0; daysAgo < 30; daysAgo++) {
-    const dayStart = new Date(today);
-    dayStart.setDate(dayStart.getDate() - daysAgo);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    const dayDate = new Date(dayStart);
-    dayDate.setHours(0, 0, 0, 0);
-
-    // Check both partners had at least 1 water AND 1 meal on this day
-    const [u1Water, u1Meals, u2Water, u2Meals] = await Promise.all([
-      db.waterLog.findUnique({
-        where: { userId_date: { userId: user1Id, date: dayDate } },
-      }),
-      db.mealLog.count({
-        where: { userId: user1Id, createdAt: { gte: dayStart, lte: dayEnd } },
-      }),
-      db.waterLog.findUnique({
-        where: { userId_date: { userId: user2Id, date: dayDate } },
-      }),
-      db.mealLog.count({
-        where: { userId: user2Id, createdAt: { gte: dayStart, lte: dayEnd } },
-      }),
-    ]);
-
+  for (const snap of snapshots) {
     const bothActive =
-      (u1Water?.count || 0) > 0 && u1Meals > 0 &&
-      (u2Water?.count || 0) > 0 && u2Meals > 0;
-
+      snap.user1Water > 0 && snap.user1Meals > 0 &&
+      snap.user2Water > 0 && snap.user2Meals > 0;
     if (bothActive) {
       streak++;
     } else {
@@ -222,35 +197,20 @@ async function checkAndAwardAchievements(
     }
   }
 
-  // 4. Streak-based achievements
-  const streak = await computeStreak(user1Id, user2Id);
+  // 4. Streak-based achievements (uses snapshots — 1 query instead of 28!)
+  const streak = await computeStreakFromSnapshots(coupleKey);
   if (streak >= 7) {
     await award("seven_day_streak");
-    // Perfect week: streak >= 7 AND check if all days had both health = 100%
-    // For simplicity, award perfect_week with 7-day streak
-    // (exact check would need per-day health calculation)
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    let allPerfect = true;
-    for (let d = 0; d < 7; d++) {
-      const day = new Date(todayStart);
-      day.setDate(day.getDate() - d);
-      const dayEnd = new Date(day);
-      dayEnd.setHours(23, 59, 59, 999);
 
-      const [u1W, u1M, u2W, u2M] = await Promise.all([
-        db.waterLog.findUnique({ where: { userId_date: { userId: user1Id, date: day } } }),
-        db.mealLog.count({ where: { userId: user1Id, createdAt: { gte: day, lte: dayEnd } } }),
-        db.waterLog.findUnique({ where: { userId_date: { userId: user2Id, date: day } } }),
-        db.mealLog.count({ where: { userId: user2Id, createdAt: { gte: day, lte: dayEnd } } }),
-      ]);
-      const u1Pct = Math.min((u1W?.count || 0) / MAX_WATER_GLASSES, 1) * 0.5 + Math.min(u1M / MEAL_GOAL, 1) * 0.5;
-      const u2Pct = Math.min((u2W?.count || 0) / MAX_WATER_GLASSES, 1) * 0.5 + Math.min(u2M / MEAL_GOAL, 1) * 0.5;
-      if (u1Pct < 1 || u2Pct < 1) {
-        allPerfect = false;
-        break;
-      }
-    }
+    // Perfect week: check if all 7 snapshots have max health
+    const snapshots = await db.lovePlantDailySnapshot.findMany({
+      where: { coupleKey },
+      orderBy: { date: "desc" },
+      take: 7,
+    });
+    const allPerfect = snapshots.length === 7 && snapshots.every(
+      (s) => s.health >= 90
+    );
     if (allPerfect) {
       await award("perfect_week");
     }
@@ -367,32 +327,7 @@ export async function GET() {
       }).catch(() => null);
     }
 
-    // Compute streak
-    const streak = await computeStreak(currentUser.id, partner.id);
-
-    // Fetch existing achievements
-    const dbAchievements = await db.lovePlantAchievement.findMany({
-      where: { coupleKey },
-      orderBy: { awardedAt: "desc" },
-    });
-
-    // Check & award new achievements
-    const newAchievements = lovePlant
-      ? await checkAndAwardAchievements(coupleKey, currentUser.id, partner.id, health)
-      : [];
-
-    // Serialize achievements (convert Date → string)
-    const serializedAchievements = dbAchievements.map((a) => ({
-      type: a.type as AchievementType,
-      awardedAt: a.awardedAt.toISOString(),
-    }));
-
-    // Add newly awarded achievements to the list
-    for (const t of newAchievements) {
-      serializedAchievements.unshift({ type: t, awardedAt: new Date().toISOString() });
-    }
-
-    // Save daily snapshot (upsert to avoid duplicates)
+    // ── Upsert daily snapshot BEFORE streak (so today's data is in snapshots table) ──
     if (lovePlant) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -415,6 +350,31 @@ export async function GET() {
           user2Meals: partnerProgress.meals.current,
         },
       }).catch(() => {});
+    }
+
+    // Compute streak from snapshots (1 query — was 120!)
+    const streak = await computeStreakFromSnapshots(coupleKey);
+
+    // Fetch existing achievements
+    const dbAchievements = await db.lovePlantAchievement.findMany({
+      where: { coupleKey },
+      orderBy: { awardedAt: "desc" },
+    });
+
+    // Check & award new achievements
+    const newAchievements = lovePlant
+      ? await checkAndAwardAchievements(coupleKey, currentUser.id, partner.id, health)
+      : [];
+
+    // Serialize achievements (convert Date → string)
+    const serializedAchievements = dbAchievements.map((a) => ({
+      type: a.type as AchievementType,
+      awardedAt: a.awardedAt.toISOString(),
+    }));
+
+    // Add newly awarded achievements to the list
+    for (const t of newAchievements) {
+      serializedAchievements.unshift({ type: t, awardedAt: new Date().toISOString() });
     }
 
     // If health is wilting, send push alert (fire-and-forget)
