@@ -49,8 +49,8 @@ export async function sendPushNotification(
         body: `${payload.title} — ${payload.body}`,
         url: payload.url || "/dashboard",
         tag: payload.tag || "partner-message",
-        icon: "/icon-192.jpeg",
-        badge: "/icon-192.jpeg",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
         vibrate: [100, 50, 100],
         actions: [
           { action: "open", title: "Open App 💕" },

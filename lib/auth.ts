@@ -54,6 +54,7 @@ const authProviders: Provider[] = [
           id: user.id,
           name: user.name,
           email: user.email,
+          image: (user as unknown as { image?: string | null }).image ?? undefined,
         };
       } catch (error) {
         console.error("DB auth failed:", error);
@@ -91,10 +92,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               where: { email: user.email },
               update: {
                 name: user.name || "User",
+                image: user.image || undefined,
               },
               create: {
                 name: user.name || "User",
                 email: user.email,
+                image: user.image || undefined,
                 password: await bcrypt.hash(
                   `google-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                   10
@@ -114,6 +117,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
+        token.image = user.image ?? undefined;
       } else if (token.email) {
         // Refresh user info from DB if possible
         try {
@@ -128,6 +132,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               token.id = dbUser.id;
               token.name = dbUser.name;
               token.email = dbUser.email;
+              token.image = dbUser.image ?? undefined;
             }
           }
         } catch {
@@ -141,6 +146,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id as string;
         session.user.name = token.name;
         session.user.email = token.email as string;
+        session.user.image = token.image ?? null;
       }
       return session;
     },

@@ -357,8 +357,8 @@ export function useNotifications() {
           const reg = await navigator.serviceWorker.ready;
           await reg.showNotification(title, {
             body,
-            icon: "/icon-192.jpeg",
-            badge: "/icon-192.jpeg",
+            icon: "/icon-192.png",
+            badge: "/icon-192.png",
             tag: tag || "chef-cupid",
             // @ts-expect-error vibrate is supported in browsers but not in TS types
             vibrate: [100, 50, 100],
@@ -373,7 +373,7 @@ export function useNotifications() {
       try {
         const notif = new Notification(title, {
           body,
-          icon: "/icon-192.jpeg",
+          icon: "/icon-192.png",
           tag: tag || "chef-cupid",
           // @ts-expect-error vibrate is supported in browsers but not in TS types
           vibrate: [100, 50, 100],

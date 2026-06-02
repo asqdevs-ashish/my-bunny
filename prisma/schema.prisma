@@ -12,6 +12,7 @@ model User {
   name            String
   email           String    @unique
   password        String
+  image           String?   // Profile picture URL
   // Partner linking — self-relation
   partnerId       String?
   partner         User?     @relation("PartnerRelation", fields: [partnerId], references: [id])

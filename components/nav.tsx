@@ -15,10 +15,14 @@ import {
   Home,
   Menu,
   X,
+  Camera,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -157,14 +161,22 @@ function MobileBottomNav({
 // ─── Main Nav Component ───────────────────────────────────────
 export function Nav() {
   const { theme, setTheme } = useTheme();
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const pathname = usePathname();
   const [partnerName, setPartnerName] = useState<string | null>(null);
   const [partnerId, setPartnerId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Profile image management
+  const [pfpUploading, setPfpUploading] = useState(false);
+  const [pfpDeleting, setPfpDeleting] = useState(false);
+
+  const userImage = session?.user?.image ?? undefined;
 
   useEffect(() => {
     setMounted(true);
@@ -216,6 +228,89 @@ export function Nav() {
     };
   }, [isMobileDrawerOpen]);
 
+  // ─── PFP Update Handler ─────────────────────────────────────
+  const handlePfpUpdate = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith("image/")) return;
+
+      setPfpUploading(true);
+
+      try {
+        let imageUrl: string | null = null;
+
+        // Try Cloudinary upload
+        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+        const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+        if (cloudName && uploadPreset) {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("upload_preset", uploadPreset);
+
+          const uploadRes = await fetch(
+            `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+            { method: "POST", body: formData }
+          );
+
+          if (uploadRes.ok) {
+            const data = await uploadRes.json();
+            imageUrl = data.secure_url;
+          }
+        }
+
+        if (!imageUrl) {
+          // Fallback: use base64 data URL (for small avatars)
+          const reader = new FileReader();
+          imageUrl = await new Promise<string>((resolve) => {
+            reader.onload = (ev) => resolve(ev.target?.result as string);
+            reader.readAsDataURL(file);
+          });
+        }
+
+        // Save to server
+        const res = await fetch("/api/user/profile-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl }),
+        });
+
+        if (res.ok) {
+          // Refresh session to get new image
+          await updateSession();
+          router.refresh();
+        }
+      } catch (error) {
+        console.error("Failed to update profile picture:", error);
+      } finally {
+        setPfpUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [updateSession]
+  );
+
+  // ─── PFP Delete Handler ─────────────────────────────────────
+  const handlePfpDelete = useCallback(async () => {
+    setPfpDeleting(true);
+    try {
+      const res = await fetch("/api/user/profile-image", {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        await updateSession();
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Failed to delete profile picture:", error);
+    } finally {
+      setPfpDeleting(false);
+    }
+  }, [updateSession]);
+
   const userName = session?.user?.name || "U";
   const isDashboard = isPathActive(pathname, "/dashboard");
   const isLogin = pathname === "/login";
@@ -233,8 +328,18 @@ export function Nav() {
     setIsMobileDrawerOpen(false);
   };
 
+  const profileFallback = "/icon-192.png";
+
   return (
     <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        onChange={handlePfpUpdate}
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* ─── TOP NAV BAR ─── */}
       <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 sm:h-16 max-w-7xl xl:max-w-[90rem] items-center justify-between px-3 sm:px-4 lg:px-6">
@@ -243,7 +348,7 @@ export function Nav() {
             <div className="relative flex items-center justify-center">
               <div className="absolute inset-0 bg-rose-400/20 blur-md rounded-full group-hover:bg-rose-400/30 transition-all" />
               <Image
-                src="/logo.png"
+                src="/icon-192.png"
                 alt="Logo"
                 width={30}
                 height={30}
@@ -366,11 +471,12 @@ export function Nav() {
                 )}
               >
                 <Image
-                  src="/profile.png"
+                  src={userImage || profileFallback}
                   alt={userName}
                   width={36}
                   height={36}
                   className="h-full w-full object-cover"
+                  unoptimized
                 />
               </button>
 
@@ -383,14 +489,63 @@ export function Nav() {
                     onClick={() => setIsMenuOpen(false)}
                   />
                   <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-2xl border border-border bg-card p-2 shadow-xl nav-dropdown-enter">
-                    {/* User Info */}
+                    {/* User Info + PFP */}
                     <div className="px-3 py-2.5 border-b border-border/50 mb-1">
-                      <p className="text-sm font-semibold text-foreground truncate">
-                        {userName}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                        {session?.user?.email}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        <div className="relative group/pfp shrink-0">
+                          <Image
+                            src={userImage || profileFallback}
+                            alt={userName}
+                            width={40}
+                            height={40}
+                            className="h-10 w-10 rounded-full object-cover ring-2 ring-rose-200 dark:ring-rose-800"
+                            unoptimized
+                          />
+                          {/* Hover overlay for PFP actions */}
+                          <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover/pfp:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fileInputRef.current?.click();
+                              }}
+                              disabled={pfpUploading}
+                              className="p-1 text-white hover:bg-white/20 rounded-full transition-colors"
+                              title="Update photo"
+                            >
+                              {pfpUploading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Camera className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                            {userImage && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePfpDelete();
+                                }}
+                                disabled={pfpDeleting}
+                                className="p-1 text-white hover:bg-white/20 rounded-full transition-colors"
+                                title="Remove photo"
+                              >
+                                {pfpDeleting ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-foreground truncate">
+                            {userName}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                            {session?.user?.email}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Quick Links */}
@@ -470,16 +625,52 @@ export function Nav() {
           {/* Drawer */}
           <div className="fixed top-14 right-0 bottom-0 z-50 w-72 max-w-[85vw] bg-card border-l border-border shadow-2xl md:hidden nav-drawer-enter">
             <div className="flex flex-col h-full overflow-y-auto">
-              {/* User Header */}
+              {/* User Header + PFP */}
               <div className="flex items-center gap-3 px-5 py-4 border-b border-border/50">
-                <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full overflow-hidden ring-2 ring-rose-300/50">
-                  <Image
-                    src="/profile.png"
-                    alt={userName}
-                    width={40}
-                    height={40}
-                    className="h-full w-full object-cover"
-                  />
+                <div className="relative group/drawer-pfp shrink-0">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full overflow-hidden ring-2 ring-rose-300/50">
+                    <Image
+                      src={userImage || profileFallback}
+                      alt={userName}
+                      width={40}
+                      height={40}
+                      className="h-full w-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  {/* Hover overlay for PFP actions */}
+                  <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover/drawer-pfp:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                    <button
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                      }}
+                      disabled={pfpUploading}
+                      className="p-1 text-white hover:bg-white/20 rounded-full transition-colors"
+                      title="Update photo"
+                    >
+                      {pfpUploading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Camera className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                    {userImage && (
+                      <button
+                        onClick={() => {
+                          handlePfpDelete();
+                        }}
+                        disabled={pfpDeleting}
+                        className="p-1 text-white hover:bg-white/20 rounded-full transition-colors"
+                        title="Remove photo"
+                      >
+                        {pfpDeleting ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-foreground truncate">

@@ -6,12 +6,12 @@ import { prisma } from "@/lib/prisma";
  * POST /api/register
  *
  * Create a new user account.
- * Expects: { name, email, password }
- * Returns: { user: { id, name, email } }
+ * Expects: { name, email, password, image? }
+ * Returns: { user: { id, name, email, image? } }
  */
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password } = await req.json();
+    const { name, email, password, image } = await req.json();
 
     if (!name || !email || !password) {
       return Response.json(
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
         name: (name as string).trim(),
         email: normalizedEmail,
         password: hashedPassword,
+        image: (typeof image === "string" && image.trim()) ? image.trim() : null,
       },
     });
 
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
           id: user.id,
           name: user.name,
           email: user.email,
+          image: (user as Record<string, unknown>).image,
         },
       },
       { status: 201 }

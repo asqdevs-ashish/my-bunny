@@ -22,6 +22,7 @@ import {
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useMood, MOODS } from "@/lib/use-mood";
+import { useSession } from "next-auth/react";
 
 interface Message {
   id: string;
@@ -204,6 +205,7 @@ const moodIconMap: Record<string, typeof Smile> = {
 
 export function ChatInterface() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { selectedMood, setSelectedMood, currentMood, mounted } = useMood();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -617,11 +619,12 @@ export function ChatInterface() {
               {/* Avatar */}
               <div className="shrink-0 mt-0.5">
                 <Image
-                  src={isUser ? "/profile.png" : "/ai.profile.png"}
+                  src={isUser ? (session?.user?.image || "/icon-192.png") : "/icon-192.png"}
                   alt={isUser ? "You" : "AI Chef"}
                   width={32}
                   height={32}
                   className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl object-cover ring-2 ring-border/60"
+                  unoptimized
                 />
               </div>
 
