@@ -35,7 +35,7 @@ Track meals, log moods, get AI-powered recipe suggestions, stay hydrated, and re
 
 ```bash
 git clone <repo-url>
-cd suar
+cd "relationship web"
 npm install
 ```
 
