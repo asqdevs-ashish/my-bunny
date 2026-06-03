@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPusherClient } from "@/lib/pusher-client";
 import {
   Swords,
   Trophy,
@@ -231,6 +232,7 @@ export function PartnerVs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [myName, setMyName] = useState("You");
+  const channelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getPusherClient>>["subscribe"]> | null>(null);
   const [partnerName, setPartnerName] = useState("Partner");
 
   useEffect(() => {
@@ -259,10 +261,41 @@ export function PartnerVs() {
     }
 
     fetchVs();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchVs, 30000);
-    return () => clearInterval(interval);
-  }, []);
+
+    // Subscribe to Pusher for real-time updates
+    const client = getPusherClient();
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    if (!client) {
+      pollInterval = setInterval(fetchVs, 30000);
+    } else {
+      fetch("/api/partner/status")
+        .then((r) => r.json())
+        .then((status) => {
+          if (!status.linked || !status.partner?.id) return;
+          const myId = session?.user?.id;
+          if (!myId) return;
+
+          const [a, b] = [myId, status.partner.id].sort();
+          const channelName = `private-partner-${a}-${b}`;
+          const channel = client.subscribe(channelName);
+          channelRef.current = channel;
+
+          channel.bind("partner-update", () => fetchVs());
+          channel.bind("love-plant-update", () => fetchVs());
+          channel.bind("partner-status-update", () => fetchVs());
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+      if (channelRef.current) {
+        channelRef.current.unbind_all();
+        channelRef.current = null;
+      }
+    };
+  }, [session?.user?.id]);
 
   // Auto-refetch when love-plant related events happen
   useEffect(() => {

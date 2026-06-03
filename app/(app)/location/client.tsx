@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -15,6 +15,7 @@ import { TrackingStatus } from "@/components/location/tracking-status";
 import { LocationTimeline } from "@/components/location/location-timeline";
 import { GeofenceManager } from "@/components/location/geofence-manager";
 import { useLocationSharing } from "@/hooks/use-location-sharing";
+import { getPusherClient } from "@/lib/pusher-client";
 import type { HistoryEntry } from "@/components/location/location-timeline";
 import type { GeofenceZoneData } from "@/components/location/live-map";
 import {
@@ -146,8 +147,57 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
     ? Date.now() - new Date(partnerLocation.timestamp).getTime() > 5 * 60 * 1000
     : false;
 
-  // Fetch partner name & history
+  // Refs for Pusher subscription cleanup
+  const locationChannelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getPusherClient>>["subscribe"]> | null>(null);
+
+  // Fetch partner name, history, zones & alerts on mount
   useEffect(() => {
+    loadLocationData();
+
+    // Subscribe to Pusher for real-time geofence alerts & location updates
+    const client = getPusherClient();
+    if (client) {
+      fetch("/api/partner/status")
+        .then((res) => res.json())
+        .then((status) => {
+          if (!status.linked || !status.partner?.id) return;
+          const myId = session?.user?.id;
+          if (!myId) return;
+
+          const [a, b] = [myId, status.partner.id].sort();
+          const channelName = `private-partner-${a}-${b}`;
+          const channel = client.subscribe(channelName);
+          locationChannelRef.current = channel;
+
+          // Listen for new geofence alerts
+          channel.bind("geofence-alert", () => {
+            fetch("/api/location/geofence/alerts")
+              .then((r) => r.json())
+              .then((data) => setGeofenceAlerts(data.alerts || []))
+              .catch(() => {});
+          });
+
+          // Listen for location updates to refresh history periodically
+          channel.bind("location-update", () => {
+            // Refresh history when location updates arrive
+            fetch("/api/location/history")
+              .then((r) => r.json())
+              .then((data) => setPartnerHistory(data.history || []))
+              .catch(() => {});
+          });
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      if (locationChannelRef.current) {
+        locationChannelRef.current.unbind_all();
+        locationChannelRef.current = null;
+      }
+    };
+  }, [session?.user?.id]);
+
+  async function loadLocationData() {
     fetch("/api/partner/status")
       .then((res) => res.json())
       .then((data) => {
@@ -181,7 +231,7 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
         setGeofenceAlerts(data.alerts || []);
       })
       .catch(() => {});
-  }, []);
+  }
 
   return (
     <div className="min-h-screen bg-background">

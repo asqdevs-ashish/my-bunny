@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
 
 export async function GET() {
   const session = await auth();
@@ -45,6 +46,26 @@ export async function POST(req: Request) {
         date: date ? new Date(date) : new Date(),
       }
     });
+
+    // Trigger Pusher event to notify partner's UI in real-time
+    if (pusherServer) {
+      const user = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { partnerId: true },
+      });
+      if (user?.partnerId) {
+        const channel = getPartnerChannel(session.user.id, user.partnerId);
+        await pusherServer
+          .trigger(channel, "partner-update", {
+            userId: session.user.id,
+            type: "memory",
+            timestamp: new Date().toISOString(),
+          })
+          .catch((err: Error) => {
+            console.error("Pusher trigger (partner-update) failed:", err);
+          });
+      }
+    }
 
     return Response.json(memory, { status: 201 });
   } catch (error) {

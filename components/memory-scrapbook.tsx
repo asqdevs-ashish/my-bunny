@@ -7,6 +7,8 @@ import { Image as ImageIcon, Plus, Loader2, Calendar, Heart, Camera, X } from "l
 import Image from "next/image";
 import imageCompression from "browser-image-compression";
 import { cn } from "@/lib/utils";
+import { getPusherClient } from "@/lib/pusher-client";
+import { useSession } from "next-auth/react";
 
 interface Memory {
   id: string;
@@ -17,6 +19,7 @@ interface Memory {
 }
 
 export function MemoryScrapbook() {
+  const { data: session } = useSession();
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsMenuOpen] = useState(false);
@@ -26,14 +29,49 @@ export function MemoryScrapbook() {
   const [compressionProgress, setCompressionProgress] = useState<number | null>(null);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const channelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getPusherClient>>["subscribe"]> | null>(null);
 
   useEffect(() => {
     fetchMemories();
 
-    // Auto-refresh every 30 seconds for real-time feel
-    const interval = setInterval(fetchMemories, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    // Subscribe to Pusher for real-time memory updates
+    const client = getPusherClient();
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    if (!client) {
+      // Pusher not configured — poll every 10s
+      pollInterval = setInterval(fetchMemories, 10000);
+    } else {
+      fetch("/api/partner/status")
+        .then((r) => r.json())
+        .then((status) => {
+          if (!status.linked || !status.partner?.id) return;
+          const myId = session?.user?.id;
+          if (!myId) return;
+
+          const [a, b] = [myId, status.partner.id].sort();
+          const channelName = `private-partner-${a}-${b}`;
+          const channel = client.subscribe(channelName);
+          channelRef.current = channel;
+
+          channel.bind("partner-update", (data: { type?: string }) => {
+            // Refresh when partner adds a memory
+            if (!data.type || data.type === "memory") {
+              fetchMemories();
+            }
+          });
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+      if (channelRef.current) {
+        channelRef.current.unbind_all();
+        channelRef.current = null;
+      }
+    };
+  }, [session?.user?.id]);
 
   async function fetchMemories() {
     try {
@@ -79,14 +117,13 @@ export function MemoryScrapbook() {
         const options = {
           maxSizeMB: 1.5,
           maxWidthOrHeight: 1920,
-          useWebWorker: false, // Web worker can fail in some environments — disabled for reliability
+          useWebWorker: false,
           onProgress: (progress: number) => {
             setCompressionProgress(Math.round(progress));
           },
         };
 
         try {
-          // Try with web worker first (faster, non-blocking)
           const compressedFile = await imageCompression(file, { ...options, useWebWorker: true });
           const compressedSizeMB = compressedFile.size / 1024 / 1024;
           console.log(`✅ Compressed: ${originalSizeMB.toFixed(2)} MB → ${compressedSizeMB.toFixed(2)} MB`);
@@ -115,7 +152,7 @@ export function MemoryScrapbook() {
         console.log("✅ Image already under 1.5MB — skipping compression");
       }
 
-      // ── Step 2: Upload to Cloudinary (direct upload — bypasses Vercel) ──
+      // ── Step 2: Upload to Cloudinary ──
       console.log("☁️ Uploading to Cloudinary...");
       const formData = new FormData();
       formData.append("file", fileToUpload);
@@ -145,7 +182,6 @@ export function MemoryScrapbook() {
       const data = await uploadRes.json();
       console.log(`✅ Uploaded to Cloudinary: ${data.secure_url}`);
 
-      // ── Step 3: Set the image URL ──
       setNewMemory((prev) => ({ ...prev, imageUrl: data.secure_url }));
 
     } catch (error) {
@@ -352,7 +388,7 @@ export function MemoryScrapbook() {
                 
                 {selectedMemory.caption ? (
                   <p className="text-base font-medium italic text-foreground leading-relaxed">
-                    “{selectedMemory.caption}”
+                    &ldquo;{selectedMemory.caption}&rdquo;
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">No caption added for this memory...</p>

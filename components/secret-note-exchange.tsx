@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Send, Heart, Loader2, MessageSquareHeart, Sparkles, Lock, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getPusherClient } from "@/lib/pusher-client";
+import { useSession } from "next-auth/react";
 
 interface SecretNote {
   id: string;
@@ -16,18 +18,54 @@ interface SecretNote {
 }
 
 export function SecretNoteExchange() {
+  const { data: session } = useSession();
   const [notes, setNotes] = useState<SecretNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const channelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getPusherClient>>["subscribe"]> | null>(null);
 
   useEffect(() => {
     fetchNotes();
 
-    // Auto-refresh every 30 seconds for real-time feel
-    const interval = setInterval(fetchNotes, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    // Subscribe to Pusher for real-time secret note updates
+    const client = getPusherClient();
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    if (!client) {
+      // Pusher not configured — poll every 10s
+      pollInterval = setInterval(fetchNotes, 10000);
+    } else {
+      fetch("/api/partner/status")
+        .then((r) => r.json())
+        .then((status) => {
+          if (!status.linked || !status.partner?.id) return;
+          const myId = session?.user?.id;
+          if (!myId) return;
+
+          const [a, b] = [myId, status.partner.id].sort();
+          const channelName = `private-partner-${a}-${b}`;
+          const channel = client.subscribe(channelName);
+          channelRef.current = channel;
+
+          channel.bind("partner-update", (data: { type?: string }) => {
+            // Refresh when partner sends a secret note
+            if (!data.type || data.type === "secret-note") {
+              fetchNotes();
+            }
+          });
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+      if (channelRef.current) {
+        channelRef.current.unbind_all();
+        channelRef.current = null;
+      }
+    };
+  }, [session?.user?.id]);
 
   async function fetchNotes() {
     try {

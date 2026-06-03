@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
 import { resolveOrCreateCurrentUser } from "@/lib/current-user";
 
 export async function GET() {
@@ -52,6 +53,20 @@ export async function POST(req: NextRequest) {
         note: note || null,
       },
     });
+
+    // Trigger Pusher event to notify partner's UI in real-time
+    if (pusherServer && currentUser.partnerId) {
+      const channel = getPartnerChannel(currentUser.id, currentUser.partnerId);
+      await pusherServer
+        .trigger(channel, "partner-update", {
+          userId: currentUser.id,
+          type: "mood",
+          timestamp: new Date().toISOString(),
+        })
+        .catch((err: Error) => {
+          console.error("Pusher trigger (partner-update) failed:", err);
+        });
+    }
 
     return Response.json(moodEntry, { status: 201 });
   } catch (error) {

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { getPusherClient } from "@/lib/pusher-client";
 import {
   Heart,
   Users,
@@ -55,6 +57,7 @@ const MOOD_LABEL: Record<string, string> = {
 };
 
 export function PartnerOverview() {
+  const { data: session } = useSession();
   const [data, setData] = useState<PartnerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -64,20 +67,81 @@ export function PartnerOverview() {
   const [linking, setLinking] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const channelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getPusherClient>>["subscribe"]> | null>(null);
+  const partnerIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetchPartnerOverview();
-
-    // Auto-refresh every 30 seconds for live feel
-    const interval = setInterval(fetchPartnerOverview, 30000);
-    return () => clearInterval(interval);
   }, []);
+
+  // Subscribe to Pusher for real-time updates
+  useEffect(() => {
+    const client = getPusherClient();
+    const myId = session?.user?.id;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    if (!client) {
+      // Pusher not configured — keep using polling fallback
+      pollInterval = setInterval(fetchPartnerOverview, 30000);
+    } else {
+      // We need partnerId to subscribe — get it from fetched data
+      const setupSubscription = setInterval(() => {
+        const partnerId = partnerIdRef.current;
+        if (!partnerId || !myId) return;
+
+        clearInterval(setupSubscription);
+
+        const [a, b] = [myId, partnerId].sort();
+        const channelName = `private-partner-${a}-${b}`;
+        const channel = client.subscribe(channelName);
+        channelRef.current = channel;
+
+        channel.bind("pusher:subscription_error", () => {
+          if (!pollInterval) {
+            pollInterval = setInterval(fetchPartnerOverview, 30000);
+          }
+        });
+
+        // Listen for partner data updates (mood, meals, water, memories, notes)
+        channel.bind("partner-update", () => {
+          fetchPartnerOverview();
+        });
+
+        // Listen for partner status changes (linking/unlinking)
+        channel.bind("partner-status-update", () => {
+          fetchPartnerOverview();
+        });
+
+        // Listen for love plant updates
+        channel.bind("love-plant-update", () => {
+          fetchPartnerOverview();
+        });
+      }, 500);
+
+      // Clean up the setup interval after 10 seconds max
+      setTimeout(() => clearInterval(setupSubscription), 10000);
+    }
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+      if (channelRef.current) {
+        channelRef.current.unbind_all();
+        const channelName = channelRef.current.name;
+        client?.unsubscribe(channelName);
+        channelRef.current = null;
+      }
+    };
+  }, [session?.user?.id]);
 
   async function fetchPartnerOverview() {
     try {
       const res = await fetch("/api/partner/overview");
       if (res.ok) {
         const json = await res.json();
+        // Store partnerId for Pusher subscription
+        if (json.linked && json.partner?.id) {
+          partnerIdRef.current = json.partner.id;
+        }
         setData(json);
       }
     } catch {

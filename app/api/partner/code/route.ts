@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
 import { resolveOrCreateCurrentUser } from "@/lib/current-user";
 
 // POST: Generate a new partner code for the current user
@@ -84,6 +85,20 @@ export async function PUT(req: NextRequest) {
       update: {},
       create: { coupleKey, user1Id: a, user2Id: b },
     }).catch((e) => console.error("Failed to create LovePlant:", e));
+
+    // Trigger Pusher event to notify both users' UIs in real-time
+    if (pusherServer) {
+      const channel = getPartnerChannel(currentUser.id, partner.id);
+      await pusherServer.trigger(channel, "partner-status-update", {
+        linked: true,
+        partner1Id: currentUser.id,
+        partner2Id: partner.id,
+        partner1Name: currentUser.name,
+        partner2Name: partner.name,
+      }).catch((err: Error) => {
+        console.error("Pusher trigger (partner-status-update) failed:", err);
+      });
+    }
 
     return Response.json({
       success: true,
