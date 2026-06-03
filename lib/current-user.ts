@@ -34,10 +34,13 @@ export async function resolveOrCreateCurrentUser(sessionUser: SessionUser) {
 
   // Use upsert to handle concurrent creation gracefully
   const placeholderPassword = await bcrypt.hash(`temp-${Date.now()}-${Math.random()}`, 10);
-  
+
   return db.user.upsert({
     where: { email: sessionUser.email },
-    update: {}, // No updates needed if user exists
+    update: {
+      name: sessionUser.name || undefined,
+      image: undefined,
+    },
     create: {
       name: sessionUser.name || "User",
       email: sessionUser.email,
