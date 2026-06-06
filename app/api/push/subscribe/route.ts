@@ -1,9 +1,9 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getApiUser } from "@/lib/api-auth";
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getApiUser(req);
+  if (!user?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
     // Save the push subscription JSON to the user's record
     await db.user.update({
-      where: { id: session.user.id },
+      where: { id: user.id },
       data: { pushSubscription: subscription },
     });
 

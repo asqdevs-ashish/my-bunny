@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = verifyOTP(normalizedEmail, normalizedCode);
+    const result = await verifyOTP(normalizedEmail, normalizedCode);
 
     if (!result.valid) {
       return Response.json(

@@ -4,7 +4,7 @@ import { PartnerVs } from "@/components/love-plant-vs";
 import { WaterTracker } from "@/components/water-tracker";
 import { MealLogger } from "@/components/meal-logger";
 import { Card, CardContent } from "@/components/ui/card";
-import { Sprout, Heart, Sparkles, TrendingUp, LayoutDashboard, Swords } from "lucide-react";
+import { Sprout, Heart, Sparkles, TrendingUp, LayoutDashboard, Trophy } from "lucide-react";
 
 export default async function LovePlantPage() {
   return (
@@ -66,6 +66,13 @@ export default async function LovePlantPage() {
           >
             <TrendingUp className="h-3.5 w-3.5" />
             History
+          </Link>
+          <Link
+            href="/competition"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+          >
+            <Trophy className="h-3.5 w-3.5" />
+            Leaderboard
           </Link>
           </div>
           <Link

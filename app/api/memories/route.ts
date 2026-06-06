@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
+import { getApiUser } from "@/lib/api-auth";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
+export async function GET(request: Request) {
+  const userData = await getApiUser(request);
+  if (!userData?.id) return new Response("Unauthorized", { status: 401 });
 
   try {
     const db = prisma;
@@ -13,9 +13,9 @@ export async function GET() {
     const memories = await db.memory.findMany({
       where: {
         OR: [
-          { userId: session.user.id },
-          { user: { partneredUsers: { some: { id: session.user.id } } } },
-          { user: { partnerId: session.user.id } }
+          { userId: userData.id },
+          { user: { partneredUsers: { some: { id: userData.id } } } },
+          { user: { partnerId: userData.id } }
         ]
       },
       orderBy: { date: "desc" },
@@ -30,8 +30,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
+  const userData = await getApiUser(req);
+  if (!userData?.id) return new Response("Unauthorized", { status: 401 });
 
   try {
     const { imageUrl, caption, date } = await req.json();
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     const memory = await db.memory.create({
       data: {
-        userId: session.user.id,
+        userId: userData.id,
         imageUrl,
         caption,
         date: date ? new Date(date) : new Date(),
@@ -50,14 +50,14 @@ export async function POST(req: Request) {
     // Trigger Pusher event to notify partner's UI in real-time
     if (pusherServer) {
       const user = await db.user.findUnique({
-        where: { id: session.user.id },
+        where: { id: userData.id },
         select: { partnerId: true },
       });
       if (user?.partnerId) {
-        const channel = getPartnerChannel(session.user.id, user.partnerId);
+        const channel = getPartnerChannel(userData.id, user.partnerId);
         await pusherServer
           .trigger(channel, "partner-update", {
-            userId: session.user.id,
+            userId: userData.id,
             type: "memory",
             timestamp: new Date().toISOString(),
           })

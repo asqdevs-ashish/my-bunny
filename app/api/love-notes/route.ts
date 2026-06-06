@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { loveNotes as defaultNotes } from "@/lib/constants";
+import { getApiUser } from "@/lib/api-auth";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
+export async function GET(request: Request) {
+  const user = await getApiUser(request);
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -16,7 +16,7 @@ export async function GET() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let note = await db.loveNote.findFirst({
+    const note = await db.loveNote.findFirst({
       where: {
         displayAt: { lte: new Date() },
       },

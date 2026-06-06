@@ -32,3 +32,25 @@ export function getPartnerChannel(userId1: string, userId2: string): string {
   const [a, b] = [userId1, userId2].sort();
   return `private-partner-${a}-${b}`;
 }
+
+/**
+ * Public competition channel — any user can subscribe.
+ * Used for real-time leaderboard updates visible to all couples.
+ */
+export const COMPETITION_CHANNEL = "competition-leaderboard";
+
+/**
+ * Trigger an event on the public competition channel.
+ * Safe to call even if Pusher isn't configured.
+ */
+export async function triggerCompetitionEvent(
+  event: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  if (!pusherServer) return;
+  try {
+    await pusherServer.trigger(COMPETITION_CHANNEL, event, data);
+  } catch (err) {
+    console.error(`Pusher trigger (${event}) on competition channel failed:`, err);
+  }
+}

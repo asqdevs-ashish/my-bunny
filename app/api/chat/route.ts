@@ -1,7 +1,7 @@
 import { createGroq } from "@ai-sdk/groq";
 import { streamText, type ModelMessage } from "ai";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getApiUser } from "@/lib/api-auth";
 import type { MealLog } from "@prisma/client";
 
 const groq = createGroq({
@@ -12,13 +12,13 @@ const groq = createGroq({
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const session = await auth();
+  const userData = await getApiUser(req);
 
-  if (!session?.user?.id) {
+  if (!userData?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const userId = session.user.id;
+  const userId = userData.id;
   const db = prisma;
 
   try {

@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
+import { getApiUser } from "@/lib/api-auth";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
+export async function GET(request: Request) {
+  const userData = await getApiUser(request);
+  if (!userData?.id) return new Response("Unauthorized", { status: 401 });
 
   try {
     const db = prisma;
@@ -14,8 +14,8 @@ export async function GET() {
     const notes = await db.secretNote.findMany({
       where: {
         OR: [
-          { receiverId: session.user.id },
-          { senderId: session.user.id }
+          { receiverId: userData.id },
+          { senderId: userData.id }
         ]
       },
       orderBy: { createdAt: "desc" },
@@ -33,8 +33,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
+  const userData = await getApiUser(req);
+  if (!userData?.id) return new Response("Unauthorized", { status: 401 });
 
   try {
     const { content } = await req.json();
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
     // Find partner
     const user = await db.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userData.id },
       select: { partnerId: true, partneredUsers: { select: { id: true }, take: 1 } }
     });
 
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
     const note = await db.secretNote.create({
       data: {
-        senderId: session.user.id,
+        senderId: userData.id,
         receiverId: partnerId,
         content,
       }
@@ -63,10 +63,10 @@ export async function POST(req: Request) {
 
     // Trigger Pusher event to notify partner's UI in real-time
     if (pusherServer) {
-      const channel = getPartnerChannel(session.user.id, partnerId);
+      const channel = getPartnerChannel(userData.id, partnerId);
       await pusherServer
         .trigger(channel, "partner-update", {
-          userId: session.user.id,
+          userId: userData.id,
           type: "secret-note",
           timestamp: new Date().toISOString(),
         })

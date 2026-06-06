@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveOrCreateCurrentUser } from "@/lib/current-user";
+import { getApiUser } from "@/lib/api-auth";
 import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
 import { MAX_WATER_GLASSES } from "@/lib/constants";
 import { sendPushNotification } from "@/lib/web-push";
@@ -19,42 +19,6 @@ type AchievementType =
   | "perfect_week"
   | "water_warriors"
   | "meal_masters";
-
-const ACHIEVEMENT_META: Record<
-  AchievementType,
-  { label: string; emoji: string; description: string }
-> = {
-  first_bloom: {
-    label: "First Bloom",
-    emoji: "🌸",
-    description: "Your love plant bloomed for the first time!",
-  },
-  three_day_streak: {
-    label: "3-Day Streak",
-    emoji: "🔥",
-    description: "3 days of caring together!",
-  },
-  seven_day_streak: {
-    label: "7-Day Streak",
-    emoji: "💫",
-    description: "A whole week of love and care!",
-  },
-  perfect_week: {
-    label: "Perfect Week",
-    emoji: "🌟",
-    description: "Perfect health for 7 days straight!",
-  },
-  water_warriors: {
-    label: "Water Warriors",
-    emoji: "💧",
-    description: "100 glasses of water logged together!",
-  },
-  meal_masters: {
-    label: "Meal Masters",
-    emoji: "🍽️",
-    description: "50 meals logged together!",
-  },
-};
 
 function getStage(health: number): PlantStage {
   if (health >= 76) return "FLOWER";
@@ -270,9 +234,9 @@ async function sendWiltingAlert(
 }
 
 // ─── GET /api/love-plant ──────────────────────────────────────
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
+export async function GET(request: Request) {
+  const userData = await getApiUser(request);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -280,7 +244,7 @@ export async function GET() {
     const db = prisma;
     if (!db) throw new Error("Database not available");
 
-    const currentUser = await resolveOrCreateCurrentUser(session.user);
+    const currentUser = await resolveOrCreateCurrentUser(userData);
 
     const user = await db.user.findUnique({
       where: { id: currentUser.id },
@@ -403,9 +367,9 @@ export async function GET() {
 }
 
 // ─── POST /api/love-plant (trigger a Pusher update) ───────────
-export async function POST(_req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
+export async function POST(req: NextRequest) {
+  const userData = await getApiUser(req);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -413,7 +377,7 @@ export async function POST(_req: NextRequest) {
     const db = prisma;
     if (!db) throw new Error("Database not available");
 
-    const currentUser = await resolveOrCreateCurrentUser(session.user);
+    const currentUser = await resolveOrCreateCurrentUser(userData);
     const user = await db.user.findUnique({
       where: { id: currentUser.id },
       include: { partner: true },

@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getApiUser } from "@/lib/api-auth";
 
 export type NotificationType = "water" | "meal" | "love" | "mood";
 
@@ -24,9 +24,9 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
  * Load notification preferences for the current user from the server.
  * Returns defaults if nothing saved yet.
  */
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function GET(request: Request) {
+  const userData = await getApiUser(request);
+  if (!userData?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -35,7 +35,7 @@ export async function GET() {
     if (!db) throw new Error("Database not available");
 
     const user = await db.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userData.id },
       select: { notificationPrefs: true },
     });
 
@@ -54,8 +54,8 @@ export async function GET() {
  * Body: { preferences: { water: boolean, meal: boolean, love: boolean, mood: boolean } }
  */
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const userData = await getApiUser(req);
+  if (!userData?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     };
 
     await db.user.update({
-      where: { id: session.user.id },
+      where: { id: userData.id },
       data: { notificationPrefs: validPrefs as unknown as Record<string, boolean> },
     });
 

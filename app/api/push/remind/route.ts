@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getApiUser } from "@/lib/api-auth";
 import { sendPushNotification } from "@/lib/web-push";
 import { getMoodCheckBody } from "@/lib/utils";
 
@@ -146,10 +146,13 @@ async function getPushSubscription(reqBody: { subscription?: unknown }, userId: 
  * saved to the user's record and used immediately.
  */
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const userData = await getApiUser(req);
+  if (!userData?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
+
+  // Keep a reference to userId for later use
+  const sessionUserId = userData.id;
 
   try {
     const body = await req.json();
@@ -187,7 +190,7 @@ export async function POST(req: Request) {
       }
 
       // Get the push subscription
-      const subToUse = await getPushSubscription(body, session.user.id);
+      const subToUse = await getPushSubscription(body, sessionUserId);
       if (!subToUse) {
         return new Response(
           JSON.stringify({ error: "No push subscription found. Enable notifications first." }),
@@ -235,7 +238,7 @@ export async function POST(req: Request) {
     }
 
     // Get the push subscription
-    const subToUse = await getPushSubscription(body, session.user.id);
+    const subToUse = await getPushSubscription(body, sessionUserId);
     if (!subToUse) {
       return new Response(
         JSON.stringify({ error: "No push subscription found. Enable notifications first." }),
@@ -278,12 +281,12 @@ export async function GET(req: Request) {
   let userId: string | null = null;
 
   if (!isCron) {
-    // Normal user request — require auth session
-    const session = await auth();
-    if (!session?.user?.id) {
+    // Normal user request — require auth
+    const userData = await getApiUser(req);
+    if (!userData?.id) {
       return new Response("Unauthorized", { status: 401 });
     }
-    userId = session.user.id;
+    userId = userData.id;
   }
 
   try {

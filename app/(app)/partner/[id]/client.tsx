@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import confetti from "canvas-confetti";
 import {
   Card,
@@ -22,7 +22,6 @@ import {
   IndianRupee,
   Sparkles,
   Calendar,
-  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -65,7 +64,7 @@ function getTimeElapsed() {
 
 function getNextAnniversary() {
   const now = new Date();
-  let next = new Date(now.getFullYear(), 6, 28); // July is month 6 (0-indexed)
+  const next = new Date(now.getFullYear(), 6, 28); // July is month 6 (0-indexed)
   if (now > next) next.setFullYear(now.getFullYear() + 1);
   
   const diff = next.getTime() - now.getTime();
@@ -142,9 +141,12 @@ export function PartnerProfileClient({ data }: { data: PartnerProfileData }) {
   const [mounted, setMounted] = useState(false);
   const nextAnniv = getNextAnniversary();
 
-  useEffect(() => {
+  // Initialize mounted on layout effect to prevent hydration mismatch
+  useLayoutEffect(() => {
     setMounted(true);
-    
+  }, []);
+
+  useEffect(() => {
     // Confetti if it's the day! (July 28)
     const now = new Date();
     if (now.getMonth() === 6 && now.getDate() === 28) {

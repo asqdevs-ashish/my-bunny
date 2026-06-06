@@ -1,9 +1,9 @@
-import { auth } from "@/lib/auth";
 import { pusherServer } from "@/lib/pusher-server";
+import { getApiUser } from "@/lib/api-auth";
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const userData = await getApiUser(req);
+  if (!userData?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
     // The channel name format: private-partner-{id1}-{id2}
     // Verify the authenticated user is one of the two users in the channel
-    const userId = session.user.id;
+    const userId = userData.id;
     const parts = channelName.split("-");
     const channelUserId1 = parts[2];
     const channelUserId2 = parts[3];
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
     const authResponse = pusherServer.authorizeChannel(socketId, channelName, {
       user_id: userId,
-      user_info: { name: session.user.name || "User" },
+      user_info: { name: userData.name || "User" },
     });
 
     return new Response(JSON.stringify(authResponse), {

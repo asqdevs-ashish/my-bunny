@@ -75,19 +75,19 @@ export function PartnerOverview() {
   }, []);
 
   // Subscribe to Pusher for real-time updates
+  // Always run a 15s polling so even unlinked users detect partner connections
   useEffect(() => {
     const client = getPusherClient();
     const myId = session?.user?.id;
-    let pollInterval: ReturnType<typeof setInterval> | null = null;
 
-    if (!client) {
-      // Pusher not configured — keep using polling fallback
-      pollInterval = setInterval(fetchPartnerOverview, 30000);
-    } else {
+    // Always poll — this ensures unlinked users detect when they get linked
+    const pollInterval = setInterval(fetchPartnerOverview, 15000);
+
+    if (client && myId) {
       // We need partnerId to subscribe — get it from fetched data
       const setupSubscription = setInterval(() => {
         const partnerId = partnerIdRef.current;
-        if (!partnerId || !myId) return;
+        if (!partnerId) return;
 
         clearInterval(setupSubscription);
 
@@ -97,9 +97,7 @@ export function PartnerOverview() {
         channelRef.current = channel;
 
         channel.bind("pusher:subscription_error", () => {
-          if (!pollInterval) {
-            pollInterval = setInterval(fetchPartnerOverview, 30000);
-          }
+          // fallback polling already running via pollInterval
         });
 
         // Listen for partner data updates (mood, meals, water, memories, notes)
@@ -118,12 +116,12 @@ export function PartnerOverview() {
         });
       }, 500);
 
-      // Clean up the setup interval after 10 seconds max
+      // Stop the setup interval after 10 seconds max (partnerId may never come)
       setTimeout(() => clearInterval(setupSubscription), 10000);
     }
 
     return () => {
-      if (pollInterval) clearInterval(pollInterval);
+      clearInterval(pollInterval);
       if (channelRef.current) {
         channelRef.current.unbind_all();
         const channelName = channelRef.current.name;

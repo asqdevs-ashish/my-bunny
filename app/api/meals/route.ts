@@ -1,19 +1,19 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveOrCreateCurrentUser } from "@/lib/current-user";
 import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
+import { getApiUser } from "@/lib/api-auth";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
+export async function GET(request: Request) {
+  const user = await getApiUser(request);
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   try {
     const db = prisma;
     if (!db) throw new Error("Database not available");
-    const currentUser = await resolveOrCreateCurrentUser(session.user);
+    const currentUser = await resolveOrCreateCurrentUser(user);
 
     const meals = await db.mealLog.findMany({
       where: { userId: currentUser.id },
@@ -29,8 +29,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
+  const user = await getApiUser(req);
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     const db = prisma;
     if (!db) throw new Error("Database not available");
-    const currentUser = await resolveOrCreateCurrentUser(session.user);
+    const currentUser = await resolveOrCreateCurrentUser(user);
 
     const meal = await db.mealLog.create({
       data: {

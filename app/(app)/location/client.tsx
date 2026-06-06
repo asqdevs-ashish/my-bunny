@@ -142,15 +142,57 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
     setTimeout(() => setRefreshing(false), 800);
   }, [refresh]);
 
-  // Compute partner stale flag (5 min threshold)
+  // Compute partner stale flag (5 min threshold) — wrap in useMemo to avoid Date.now() during render
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, []);
   const partnerStale = partnerLocation?.timestamp
-    ? Date.now() - new Date(partnerLocation.timestamp).getTime() > 5 * 60 * 1000
+    ? now - new Date(partnerLocation.timestamp).getTime() > 5 * 60 * 1000
     : false;
 
   // Refs for Pusher subscription cleanup
   const locationChannelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getPusherClient>>["subscribe"]> | null>(null);
 
-  // Fetch partner name, history, zones & alerts on mount
+  // ─── Fetch partner name, history, zones & alerts ───
+  async function loadLocationData() {
+    fetch("/api/partner/status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.linked && data.partner) {
+          setPartnerName(data.partner.name);
+          setPartnerId(data.partner.id);
+        }
+      })
+      .catch(() => {});
+
+    // Fetch partner's location history for trail visualization
+    fetch("/api/location/history")
+      .then((res) => res.json())
+      .then((data) => {
+        setPartnerHistory(data.history || []);
+      })
+      .catch(() => {});
+
+    // Fetch geofence zones for map display
+    fetch("/api/location/geofence")
+      .then((res) => res.json())
+      .then((data) => {
+        setGeofenceZones(data.zones || []);
+      })
+      .catch(() => {});
+
+    // Fetch recent geofence alerts
+    fetch("/api/location/geofence/alerts")
+      .then((res) => res.json())
+      .then((data) => {
+        setGeofenceAlerts(data.alerts || []);
+      })
+      .catch(() => {});
+  }
+
+  // Subscribe to Pusher on mount
   useEffect(() => {
     loadLocationData();
 
@@ -196,42 +238,6 @@ export function LocationClient({ userName = "You" }: LocationClientProps) {
       }
     };
   }, [session?.user?.id]);
-
-  async function loadLocationData() {
-    fetch("/api/partner/status")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.linked && data.partner) {
-          setPartnerName(data.partner.name);
-          setPartnerId(data.partner.id);
-        }
-      })
-      .catch(() => {});
-
-    // Fetch partner's location history for trail visualization
-    fetch("/api/location/history")
-      .then((res) => res.json())
-      .then((data) => {
-        setPartnerHistory(data.history || []);
-      })
-      .catch(() => {});
-
-    // Fetch geofence zones for map display
-    fetch("/api/location/geofence")
-      .then((res) => res.json())
-      .then((data) => {
-        setGeofenceZones(data.zones || []);
-      })
-      .catch(() => {});
-
-    // Fetch recent geofence alerts
-    fetch("/api/location/geofence/alerts")
-      .then((res) => res.json())
-      .then((data) => {
-        setGeofenceAlerts(data.alerts || []);
-      })
-      .catch(() => {});
-  }
 
   return (
     <div className="min-h-screen bg-background">

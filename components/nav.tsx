@@ -19,6 +19,7 @@ import {
   Trash2,
   Loader2,
   Settings,
+  Trophy,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
@@ -43,12 +44,14 @@ function isPathActive(pathname: string, href: string): boolean {
 
 const TOP_NAV_ITEMS: NavItem[] = [
   { href: "/love-plant", label: "Love Plant", icon: Sprout, color: "text-emerald-500" },
+  { href: "/competition", label: "Competition", icon: Trophy, color: "text-amber-500" },
   { href: "/location", label: "Location", icon: MapPin, requiresPartner: true, color: "text-emerald-500" },
 ];
 
 const BOTTOM_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: Home, color: "text-rose-500" },
   { href: "/love-plant", label: "Plant", icon: Sprout, color: "text-emerald-500" },
+  { href: "/competition", label: "Leaderboard", icon: Trophy, requiresPartner: true, color: "text-amber-500" },
   { href: "/location", label: "Map", icon: MapPin, requiresPartner: true, color: "text-blue-500" },
   { href: "/partner-chat", label: "Chat", icon: MessageCircle, requiresPartner: true, color: "text-rose-500" },
 ];

@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
 import { resolveCurrentUser } from "@/lib/current-user";
+import { getApiUser } from "@/lib/api-auth";
 
 const OSRM_BASE = "https://router.project-osrm.org/route/v1";
 
@@ -41,13 +41,13 @@ async function fetchRoute(
 }
 
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user) {
+  const userData = await getApiUser(req);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   try {
-    const currentUser = await resolveCurrentUser(session.user);
+    const currentUser = await resolveCurrentUser(userData);
     if (!currentUser) {
       return new Response("User not found", { status: 400 });
     }

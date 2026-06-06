@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { getApiUser } from "@/lib/api-auth";
 
-export async function POST() {
-  const session = await auth();
-  if (!session?.user?.id) {
+export async function POST(request: Request) {
+  const userData = await getApiUser(request);
+  if (!userData?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -14,7 +14,7 @@ export async function POST() {
 
     // Remove the push subscription
     await db.user.update({
-      where: { id: session.user.id },
+      where: { id: userData.id },
       data: { pushSubscription: Prisma.DbNull },
     });
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = "chefcupid-v1";
+const CACHE_NAME = "my-bunny-v1";
 const ASSETS = ["/dashboard", "/chat", "/login"];
 
 // Install event - cache basic assets
@@ -29,11 +29,11 @@ self.addEventListener("push", (event) => {
     try {
       const data = event.data.json();
       // Use a clean notification icon from the site's available assets
-      const iconUrl = data.icon || "/icon-192.jpeg";
+      const iconUrl = data.icon || "/icon-192.png";
       const options = {
         body: data.body || "Hey baby! 💕",
         icon: iconUrl,
-        badge: "/icon-192.jpeg",
+        badge: "/icon-192.png",
         vibrate: data.vibrate || [100, 50, 100],
         data: {
           dateOfArrival: Date.now(),
@@ -51,8 +51,8 @@ self.addEventListener("push", (event) => {
       // If not JSON, show raw text
       const options = {
         body: event.data.text(),
-        icon: "/icon-192.jpeg",
-        badge: "/icon-192.jpeg",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
         vibrate: [100, 50, 100],
       };
       event.waitUntil(self.registration.showNotification("My Bunny 💕", options));
@@ -102,8 +102,8 @@ self.addEventListener("periodicsync", (event) => {
     event.waitUntil(
       self.registration.showNotification("💧 Water Reminder", {
         body: "Time to hydrate, baby! 💧",
-        icon: "/icon-192.jpeg",
-        badge: "/icon-192.jpeg",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
         vibrate: [100, 50, 100],
         tag: "water-reminder",
       })
@@ -113,8 +113,8 @@ self.addEventListener("periodicsync", (event) => {
     event.waitUntil(
       self.registration.showNotification("💕 Love Note", {
         body: "Just a reminder — you're amazing! 💕",
-        icon: "/icon-192.jpeg",
-        badge: "/icon-192.jpeg",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
         vibrate: [100, 50, 100],
         tag: "love-note",
       })

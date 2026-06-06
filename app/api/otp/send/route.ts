@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Rate limit: don't send if OTP was sent less than 30 seconds ago
-    if (wasRecentlySent(normalizedEmail)) {
+    if (await wasRecentlySent(normalizedEmail)) {
       return Response.json(
         { error: "Please wait 30 seconds before requesting a new code" },
         { status: 429 }
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     // Generate and store OTP
     const otp = generateOTP();
-    storeOTP(normalizedEmail, otp);
+    await storeOTP(normalizedEmail, otp);
 
     // Send OTP email
     const sent = await sendOTPEmail(normalizedEmail, otp);

@@ -1,12 +1,12 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getApiUser } from "@/lib/api-auth";
 import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
 import { sendPushNotification } from "@/lib/web-push";
 import { resolveCurrentUser } from "@/lib/current-user";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
+export async function GET(request: Request) {
+  const userData = await getApiUser(request);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -14,7 +14,7 @@ export async function GET() {
     const db = prisma;
     if (!db) throw new Error("Database not available");
 
-    const currentUser = await resolveCurrentUser(session.user);
+    const currentUser = await resolveCurrentUser(userData);
     if (!currentUser) {
       return Response.json({ messages: [], partner: null });
     }
@@ -57,8 +57,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user) {
+  const userData = await getApiUser(req);
+  if (!userData?.id) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -75,7 +75,8 @@ export async function POST(req: Request) {
     const db = prisma;
     if (!db) throw new Error("Database not available");
 
-    const currentUser = await resolveCurrentUser(session.user);
+    // Use userData directly as it has id matching resolveCurrentUser expectations
+    const currentUser = await resolveCurrentUser(userData);
     if (!currentUser) {
       return new Response(
         JSON.stringify({ error: "User not found in database. Please logout and login again." }),

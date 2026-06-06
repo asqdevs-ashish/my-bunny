@@ -1,14 +1,14 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveCurrentUser } from "@/lib/current-user";
+import { getApiUser } from "@/lib/api-auth";
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await auth();
-  if (!session?.user) {
+  const userData = await getApiUser(req);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -18,7 +18,7 @@ export async function PATCH(
   }
 
   try {
-    const currentUser = await resolveCurrentUser(session.user);
+    const currentUser = await resolveCurrentUser(userData);
     if (!currentUser) {
       return new Response("User not found", { status: 400 });
     }
@@ -116,8 +116,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await auth();
-  if (!session?.user) {
+  const userData = await getApiUser(req);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -127,7 +127,7 @@ export async function DELETE(
   }
 
   try {
-    const currentUser = await resolveCurrentUser(session.user);
+    const currentUser = await resolveCurrentUser(userData);
     if (!currentUser) {
       return new Response("User not found", { status: 400 });
     }

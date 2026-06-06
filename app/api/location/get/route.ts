@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveCurrentUser } from "@/lib/current-user";
+import { getApiUser } from "@/lib/api-auth";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
+export async function GET(request: Request) {
+  const userData = await getApiUser(request);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -14,7 +14,7 @@ export async function GET() {
   }
 
   try {
-    const currentUser = await resolveCurrentUser(session.user);
+    const currentUser = await resolveCurrentUser(userData);
     if (!currentUser) {
       return new Response("User not found", { status: 400 });
     }

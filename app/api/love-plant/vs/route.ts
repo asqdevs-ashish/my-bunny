@@ -1,6 +1,6 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveOrCreateCurrentUser } from "@/lib/current-user";
+import { getApiUser } from "@/lib/api-auth";
 import { MAX_WATER_GLASSES } from "@/lib/constants";
 
 export interface VsCompareEntry {
@@ -142,9 +142,9 @@ function getWinner(
   return "tie";
 }
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
+export async function GET(request: Request) {
+  const userData = await getApiUser(request);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -152,7 +152,7 @@ export async function GET() {
     const db = prisma;
     if (!db) throw new Error("Database not available");
 
-    const currentUser = await resolveOrCreateCurrentUser(session.user);
+    const currentUser = await resolveOrCreateCurrentUser(userData);
     const user = await db.user.findUnique({
       where: { id: currentUser.id },
       include: { partner: true },

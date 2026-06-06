@@ -1,11 +1,11 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
 import { resolveCurrentUser } from "@/lib/current-user";
+import { getApiUser } from "@/lib/api-auth";
 
-export async function POST() {
-  const session = await auth();
-  if (!session?.user) {
+export async function POST(request: Request) {
+  const userData = await getApiUser(request);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -15,7 +15,7 @@ export async function POST() {
   }
 
   try {
-    const currentUser = await resolveCurrentUser(session.user);
+    const currentUser = await resolveCurrentUser(userData);
     if (!currentUser) {
       return new Response("User not found", { status: 400 });
     }

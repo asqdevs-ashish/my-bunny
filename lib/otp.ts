@@ -1,21 +1,13 @@
-// ─── In-Memory OTP Store ──────────────────────────────────────
-// Simple OTP store with 5-minute TTL and max 5 attempts.
-// Works for single-server deployments.
-// For multi-instance (e.g. serverless), consider using Redis or DB.
+// ─── Database-Backed OTP Store ────────────────────────────────
+// Uses the VerificationCode table in PostgreSQL so OTPs persist
+// across API route boundaries and serverless deployments.
+// 5-minute TTL and max 5 attempts per code.
 
-interface OtpEntry {
-  code: string;
-  expiresAt: number;
-  createdAt: number;
-  email: string;
-  attempts: number;
-}
+import { prisma } from "@/lib/prisma";
 
 const MAX_ATTEMPTS = 5;
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const RATE_LIMIT_MS = 30_000; // 30 seconds between sends
-
-const otpStore = new Map<string, OtpEntry>();
 
 /** Generate a random 6-digit OTP */
 export function generateOTP(): string {
@@ -23,56 +15,82 @@ export function generateOTP(): string {
 }
 
 /** Store an OTP for the given email (5 min TTL) */
-export function storeOTP(email: string, code: string): void {
+export async function storeOTP(email: string, code: string): Promise<void> {
   const normalized = email.toLowerCase().trim();
-  const now = Date.now();
-  otpStore.set(normalized, {
-    code,
-    email: normalized,
-    expiresAt: now + OTP_TTL_MS,
-    createdAt: now,
-    attempts: 0,
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + OTP_TTL_MS);
+
+  // Delete any previously stored OTPs for this email
+  await prisma.verificationCode.deleteMany({
+    where: { email: normalized },
+  });
+
+  await prisma.verificationCode.create({
+    data: {
+      email: normalized,
+      code,
+      attempts: 0,
+      expiresAt,
+    },
   });
 }
 
-/** Verify OTP for the given email. Returns true if valid, and deletes the entry. */
-export function verifyOTP(email: string, code: string): { valid: boolean; error?: string } {
+/** Verify OTP for the given email */
+export async function verifyOTP(
+  email: string,
+  code: string
+): Promise<{ valid: boolean; error?: string }> {
   const normalized = email.toLowerCase().trim();
-  const entry = otpStore.get(normalized);
+
+  // Find the latest OTP entry for this email
+  const entry = await prisma.verificationCode.findFirst({
+    where: { email: normalized },
+    orderBy: { createdAt: "desc" },
+  });
 
   if (!entry) {
     return { valid: false, error: "No verification code found. Please request a new one." };
   }
 
   // Expired
-  if (Date.now() > entry.expiresAt) {
-    otpStore.delete(normalized);
+  if (Date.now() > entry.expiresAt.getTime()) {
+    await prisma.verificationCode.delete({ where: { id: entry.id } });
     return { valid: false, error: "Code has expired. Please request a new one." };
   }
 
   // Max attempts exceeded
   if (entry.attempts >= MAX_ATTEMPTS) {
-    otpStore.delete(normalized);
+    await prisma.verificationCode.delete({ where: { id: entry.id } });
     return { valid: false, error: "Too many failed attempts. Please request a new code." };
   }
 
   // Increment attempts
-  entry.attempts++;
+  await prisma.verificationCode.update({
+    where: { id: entry.id },
+    data: { attempts: entry.attempts + 1 },
+  });
 
   // Wrong code
   if (entry.code !== code) {
-    return { valid: false, error: `Invalid code. ${MAX_ATTEMPTS - entry.attempts} attempts remaining.` };
+    return {
+      valid: false,
+      error: `Invalid code. ${MAX_ATTEMPTS - entry.attempts - 1} attempts remaining.`,
+    };
   }
 
   // Valid — delete after use
-  otpStore.delete(normalized);
+  await prisma.verificationCode.delete({ where: { id: entry.id } });
   return { valid: true };
 }
 
 /** Check if an OTP was recently sent (within last 30 seconds — rate limit) */
-export function wasRecentlySent(email: string): boolean {
+export async function wasRecentlySent(email: string): Promise<boolean> {
   const normalized = email.toLowerCase().trim();
-  const entry = otpStore.get(normalized);
+  const entry = await prisma.verificationCode.findFirst({
+    where: { email: normalized },
+    orderBy: { createdAt: "desc" },
+  });
+
   if (!entry) return false;
-  return Date.now() - entry.createdAt < RATE_LIMIT_MS;
+  return Date.now() - entry.createdAt.getTime() < RATE_LIMIT_MS;
 }

@@ -1,20 +1,20 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
 import { resolveOrCreateCurrentUser } from "@/lib/current-user";
+import { getApiUser } from "@/lib/api-auth";
 
 // POST: Generate a new partner code for the current user
-export async function POST() {
-  const session = await auth();
-  if (!session?.user) {
+export async function POST(request: Request) {
+  const userData = await getApiUser(request);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   try {
     const db = prisma;
     if (!db) throw new Error("Database not available");
-    const currentUser = await resolveOrCreateCurrentUser(session.user);
+    const currentUser = await resolveOrCreateCurrentUser(userData);
 
     // Generate a random 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -33,8 +33,8 @@ export async function POST() {
 
 // PUT: Link to a partner using their code
 export async function PUT(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
+  const userData = await getApiUser(req);
+  if (!userData) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -46,7 +46,7 @@ export async function PUT(req: NextRequest) {
 
     const db = prisma;
     if (!db) throw new Error("Database not available");
-    const currentUser = await resolveOrCreateCurrentUser(session.user);
+    const currentUser = await resolveOrCreateCurrentUser(userData);
 
     // Find the user with this partner code
     const partner = await db.user.findUnique({

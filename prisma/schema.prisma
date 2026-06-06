@@ -45,8 +45,24 @@ model User {
   geofenceAlerts      GeofenceAlert[]
   lovePlantsAsUser1   LovePlant[] @relation("LovePlantUser1")
   lovePlantsAsUser2   LovePlant[] @relation("LovePlantUser2")
+  competitionEntriesAsUser1 CompetitionCouple[] @relation("CompetitionUser1")
+  competitionEntriesAsUser2 CompetitionCouple[] @relation("CompetitionUser2")
 
   @@map("users")
+}
+
+// ─── Competition Badges (Rewards for leaderboard) ─────────────
+model CompetitionBadge {
+  id        String   @id @default(cuid())
+  coupleKey String
+  rank      Int      // 1, 2, 3
+  title     String   // "🥇 Gold Champions", "🥈 Silver Champions", "🥉 Bronze Champions"
+  weekOf    DateTime // Which week this badge was awarded
+  awardedAt DateTime @default(now())
+
+  @@unique([coupleKey, weekOf])
+  @@index([coupleKey])
+  @@map("competition_badges")
 }
 
 // ─── Love Plant (Co-op Health Quest) ────────────────────────────
@@ -82,6 +98,39 @@ model LovePlantDailySnapshot {
   @@unique([coupleKey, date])
   @@index([coupleKey, date])
   @@map("love_plant_daily_snapshots")
+}
+
+// ─── Competition / Leaderboard ────────────────────────────────
+model Competition {
+  id        String   @id @default(cuid())
+  name      String   @default("Love Plant League")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  couples CompetitionCouple[]
+
+  @@map("competitions")
+}
+
+model CompetitionCouple {
+  id            String   @id @default(cuid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  coupleKey     String   @unique // same as love_plants.coupleKey
+  teamName      String?  // Final agreed team name
+  nameSuggestedByUser1 String?  // name suggested by user1
+  nameSuggestedByUser2 String?  // name suggested by user2
+  user1Id       String
+  user1         User     @relation("CompetitionUser1", fields: [user1Id], references: [id])
+  user2Id       String
+  user2         User     @relation("CompetitionUser2", fields: [user2Id], references: [id])
+  user1Agreed   Boolean  @default(false)
+  user2Agreed   Boolean  @default(false)
+  joinedAt      DateTime @default(now())
+
+  @@index([competitionId])
+  @@index([coupleKey])
+  @@map("competition_couples")
 }
 
 // ─── Love Plant Achievements ────────────────────────────────────
@@ -219,6 +268,19 @@ model ChatMessage {
   createdAt  DateTime @default(now())
 
   @@map("chat_messages")
+}
+
+// ─── Verification Codes (OTP) ────────────────────────────────
+model VerificationCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("verification_codes")
 }
 
 // ─── Meal Logs ────────────────────────────────────────────────
