@@ -49,28 +49,36 @@ export async function POST(req: NextRequest) {
 
     // Set this user as agreed
     if (isUser1) {
-      coupleEntry = await db.competitionCouple.update({
+      await db.competitionCouple.update({
         where: { id: coupleEntry.id },
         data: { user1Agreed: true },
       });
     } else {
-      coupleEntry = await db.competitionCouple.update({
+      await db.competitionCouple.update({
         where: { id: coupleEntry.id },
         data: { user2Agreed: true },
       });
     }
 
-    // If both agreed, lock the team name
-    const bothAgreed = coupleEntry.user1Agreed && coupleEntry.user2Agreed;
-    let teamName = coupleEntry.teamName;
+    // 🔁 FRESH re-read to handle race condition when both users approve simultaneously
+    // Without this, concurrent updates may each see only their own change as true
+    const freshEntry = await db.competitionCouple.findUniqueOrThrow({
+      where: { id: coupleEntry.id },
+    });
+
+    const bothAgreed = freshEntry.user1Agreed && freshEntry.user2Agreed;
+    let teamName = freshEntry.teamName;
 
     if (bothAgreed && !teamName) {
-      const finalName = coupleEntry.nameSuggestedByUser1 || coupleEntry.nameSuggestedByUser2 || "Love Team ❤️";
-      coupleEntry = await db.competitionCouple.update({
+      const finalName = freshEntry.nameSuggestedByUser1 || freshEntry.nameSuggestedByUser2 || "Love Team ❤️";
+      const updated = await db.competitionCouple.update({
         where: { id: coupleEntry.id },
         data: { teamName: finalName },
       });
-      teamName = finalName;
+      teamName = updated.teamName;
+      coupleEntry = updated;
+    } else {
+      coupleEntry = freshEntry;
     }
 
     // Notify partner via Pusher

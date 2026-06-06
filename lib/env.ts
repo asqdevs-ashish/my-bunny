@@ -26,6 +26,10 @@ const CLOUDINARY_VARS = [
   "NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET",
 ] as const;
 
+const CHAT_VARS = [
+  "CHAT_ENCRYPTION_KEY",
+] as const;
+
 type EnvStatus = "ok" | "missing" | "optional";
 
 interface EnvCheckResult {
@@ -60,6 +64,12 @@ export function checkEnv(): EnvCheckResult[] {
   for (const v of CLOUDINARY_VARS) {
     if (!process.env[v]) {
       results.push({ var: v, status: "optional", note: "Memory scrapbook image uploads will not work" });
+    }
+  }
+
+  for (const v of CHAT_VARS) {
+    if (!process.env[v]) {
+      results.push({ var: v, status: "optional", note: "Chat messages will be stored as plaintext in database. Set this to encrypt at rest." });
     }
   }
 

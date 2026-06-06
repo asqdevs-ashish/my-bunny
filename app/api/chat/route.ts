@@ -3,6 +3,7 @@ import { streamText, type ModelMessage } from "ai";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import type { MealLog } from "@prisma/client";
+import { encryptMessage } from "@/lib/chat-encryption";
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY || "",
@@ -165,23 +166,23 @@ FORMAT YOUR RESPONSES:
 - Recipe names ke liye **bold** use karo
 - Mazaa karo! Emojis dalna mat bhoolna! 🌿💧`;
 
-    // 6. Save the user message to database
+    // 6. Save the user message to database (encrypted at rest)
     const lastMessage = messages[messages.length - 1];
     if (lastMessage?.role === "user" && lastMessage.content && db) {
+      const content = typeof lastMessage.content === "string"
+        ? lastMessage.content
+        : JSON.stringify(lastMessage.content);
       await db.chatMessage.create({
         data: {
           senderId: userId,
           receiverId: null, // AI chat setup
           role: "user",
-          content:
-            typeof lastMessage.content === "string"
-              ? lastMessage.content
-              : JSON.stringify(lastMessage.content),
+          content: encryptMessage(content),
         },
       }).catch((err: Error) => console.error("Failed to save user msg:", err));
     }
 
-    // 7. Stream text response and log assistant response safely on finish
+    // 7. Stream text response and log assistant response safely on finish (encrypted at rest)
     const result = streamText({
       model: groq("llama-3.3-70b-versatile"),
       system: systemPrompt,
@@ -193,7 +194,7 @@ FORMAT YOUR RESPONSES:
               senderId: null,      // AI is the sender
               receiverId: userId,  // FIXED BUG: Now maps properly to the current user
               role: "assistant",
-              content: text,
+              content: encryptMessage(text),
             },
           }).catch((err: Error) =>
             console.error("Failed to save assistant msg:", err)

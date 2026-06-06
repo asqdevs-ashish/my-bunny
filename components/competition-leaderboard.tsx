@@ -84,10 +84,23 @@ function JoinFlow({
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const retryCountRef = useRef(0);
+
+  // Auto-retry: if both approved but teamName not yet locked, try up to 3 times
+  useEffect(() => {
+    if (myStatus?.status === "naming" && myStatus?.myAgreed && myStatus?.partnerAgreed && !myStatus?.teamName && retryCountRef.current < 3) {
+      retryCountRef.current += 1;
+      const timer = setTimeout(() => {
+        handleApprove();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [myStatus?.status, myStatus?.myAgreed, myStatus?.partnerAgreed, myStatus?.teamName]);
 
   useEffect(() => {
     if (myStatus?.status === "naming") setStep("naming");
     if (myStatus?.status === "joined") setStep("done");
+    // Keep at "interest" step for "not_joined" or "joined_pending"
   }, [myStatus]);
 
   // ── Step 1: Join the competition ──
@@ -98,7 +111,8 @@ function JoinFlow({
       const res = await fetch("/api/competition/join", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
-        setStep("naming");
+        // Don't immediately go to naming — wait until BOTH partners agree
+        // useEffect will handle transitions based on myStatus
         onRefresh();
       } else {
         setError(data.error || "Failed to join");
@@ -157,7 +171,7 @@ function JoinFlow({
   };
 
   // Get the current suggested name (from either partner)
-  const suggestedName = myStatus?.nameSuggestedByUser1 || myStatus?.nameSuggestedByUser2 || null;
+  const suggestedName = myStatus?.myNameSuggestion || myStatus?.partnerNameSuggestion || null;
   const myApproved = myStatus?.myAgreed;
   const partnerApproved = myStatus?.partnerAgreed;
 
@@ -193,9 +207,16 @@ function JoinFlow({
           </p>
         </div>
 
+        {!myStatus?.myAgreed && myStatus?.partnerAgreed && (
+          <div className="rounded-xl bg-green-50 dark:bg-green-900/20 p-3 text-xs text-green-700 dark:text-green-400">
+            ✓ {myStatus.partnerName} has already agreed! Join now to team up!
+          </div>
+        )}
         {myStatus?.myAgreed && !myStatus?.partnerAgreed && (
           <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-700 dark:text-amber-400">
+            <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1" />
             Waiting for {myStatus.partnerName} to agree... 🕐
+            <p className="mt-1 text-[9px] opacity-70">Ask them to open the Leaderboard page and click &quot;Count Me In!&quot;</p>
           </div>
         )}
 
@@ -264,13 +285,28 @@ function JoinFlow({
 
       {/* Both approved — just waiting animation */}
       {bothApproved && !myStatus?.teamName && (
-        <div className="rounded-xl bg-green-50 dark:bg-green-900/20 p-4 text-center animate-bounce-in">
+        <div className="rounded-xl bg-green-50 dark:bg-green-900/20 p-4 text-center animate-bounce-in space-y-3">
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 mb-2">
             <Loader2 className="h-5 w-5 animate-spin text-green-500" />
           </div>
           <p className="text-sm font-bold text-green-700 dark:text-green-400">
-            Both approved! Locking team name... ⏳
+            Both approved! Finalizing team name... ⏳
           </p>
+          <Button
+            onClick={handleApprove}
+            disabled={loading}
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30"
+          >
+            {loading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <CheckCircle className="h-3 w-3" />
+            )}
+            Lock Team Name
+          </Button>
+          <p className="text-[9px] text-muted-foreground/60">Click if it takes too long</p>
         </div>
       )}
 
@@ -496,7 +532,7 @@ export function CompetitionLeaderboard() {
     );
   }
 
-  const canJoin = myStatus?.status === "not_joined" || myStatus?.status === "naming" || myStatus?.status === "no_competition";
+  const canJoin = myStatus?.status === "not_joined" || myStatus?.status === "joined_pending" || myStatus?.status === "no_competition";
   const isJoined = myStatus?.status === "joined";
 
   return (

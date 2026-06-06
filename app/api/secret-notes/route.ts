@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
 import { getApiUser } from "@/lib/api-auth";
+import { encryptMessage, decryptMessage } from "@/lib/chat-encryption";
 
 export async function GET(request: Request) {
   const userData = await getApiUser(request);
@@ -25,7 +26,13 @@ export async function GET(request: Request) {
       }
     });
 
-    return Response.json(notes);
+    // Decrypt all note contents before returning
+    const decryptedNotes = notes.map((note) => ({
+      ...note,
+      content: decryptMessage(note.content),
+    }));
+
+    return Response.json(decryptedNotes);
   } catch (error) {
     console.error("Failed to fetch secret notes:", error);
     return new Response(JSON.stringify({ error: "Failed to fetch secret notes" }), { status: 500 });
@@ -53,11 +60,14 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: "No partner linked" }), { status: 400 });
     }
 
+    // Encrypt content before saving to database
+    const encryptedContent = encryptMessage(content);
+
     const note = await db.secretNote.create({
       data: {
         senderId: userData.id,
         receiverId: partnerId,
-        content,
+        content: encryptedContent,
       }
     });
 

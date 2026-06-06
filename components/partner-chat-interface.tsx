@@ -65,6 +65,9 @@ function ChatBubble({
   message: PartnerChatMessage;
   isOwn: boolean;
 }) {
+  const isRead = !!message.readAt;
+  const isOptimistic = message.id.startsWith("opt-");
+
   return (
     <div
       className={cn(
@@ -104,9 +107,14 @@ function ChatBubble({
           <span className="text-[10px] opacity-60 tabular-nums">
             {formatMessageTime(message.createdAt)}
           </span>
-          {isOwn && (
+          {isOwn && !isOptimistic && (
             <div className="flex -space-x-1">
-              <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />
+              <CheckCheck 
+                className={cn(
+                  "h-3.5 w-3.5 transition-colors duration-300",
+                  isRead ? "text-[#53bdeb]" : "text-gray-400 dark:text-gray-500"
+                )} 
+              />
             </div>
           )}
         </div>

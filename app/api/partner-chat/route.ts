@@ -3,6 +3,7 @@ import { getApiUser } from "@/lib/api-auth";
 import { pusherServer, getPartnerChannel } from "@/lib/pusher-server";
 import { sendPushNotification } from "@/lib/web-push";
 import { resolveCurrentUser } from "@/lib/current-user";
+import { encryptMessage, decryptMessage } from "@/lib/chat-encryption";
 
 export async function GET(request: Request) {
   const userData = await getApiUser(request);
@@ -46,8 +47,40 @@ export async function GET(request: Request) {
       take: 100,
     });
 
+    // ── Mark partner's messages as read (blue tick) ──
+    const now = new Date();
+    const unreadPartnerMessages = messages.filter(
+      (m) => m.senderId === user.partnerId && !m.readAt
+    );
+    const unreadIds = unreadPartnerMessages.map((m) => m.id);
+
+    if (unreadIds.length > 0) {
+      await db.chatMessage.updateMany({
+        where: { id: { in: unreadIds } },
+        data: { readAt: now },
+      });
+
+      // Notify partner via Pusher that their messages were read
+      if (pusherServer) {
+        const channel = getPartnerChannel(userId, user.partnerId);
+        await pusherServer
+          .trigger(channel, "messages-read", {
+            readAt: now.toISOString(),
+            messageIds: unreadIds,
+          })
+          .catch(() => {});
+      }
+    }
+
+    // Decrypt all messages before returning (with updated readAt)
+    const decryptedMessages = messages.map((msg) => ({
+      ...msg,
+      content: decryptMessage(msg.content),
+      readAt: unreadIds.includes(msg.id) ? now.toISOString() : msg.readAt?.toISOString() || null,
+    }));
+
     return Response.json({
-      messages,
+      messages: decryptedMessages,
       partnerId: user.partnerId,
     });
   } catch (error) {
@@ -98,25 +131,39 @@ export async function POST(req: Request) {
       );
     }
 
-    // Save message to database
+    // Encrypt the message content before saving to database
+    const encryptedContent = encryptMessage(content.trim());
+
+    // Save message to database (encrypted at rest)
     const message = await db.chatMessage.create({
       data: {
         senderId: userId,
         receiverId: user.partnerId,
         role: "partner",
-        content: content.trim(),
+        content: encryptedContent,
       },
     });
 
-    // Trigger Pusher event for real-time delivery
+    // Trigger Pusher event for real-time delivery (send decrypted content to client)
     if (pusherServer) {
       const channel = getPartnerChannel(userId, user.partnerId);
       await pusherServer.trigger(channel, "new-message", {
-        message,
+        message: {
+          ...message,
+          content: content.trim(), // Send plaintext via Pusher (already over HTTPS)
+          readAt: null,            // New messages start unread
+        },
       }).catch((err: Error) => {
         console.error("Pusher trigger failed:", err);
       });
     }
+
+    // Return decrypted message to sender (with readAt = null since partner hasn't seen it yet)
+    const responseMessage = {
+      ...message,
+      content: content.trim(),
+      readAt: null,
+    };
 
     // Send web push notification to partner (background notification)
     const sender = await db.user.findUnique({
@@ -146,7 +193,7 @@ export async function POST(req: Request) {
       console.error("Failed to send push notification:", pushErr);
     }
 
-    return Response.json({ message }, { status: 201 });
+    return Response.json({ message: responseMessage }, { status: 201 });
   } catch (error) {
     console.error("Failed to send message:", error);
     return new Response(

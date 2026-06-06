@@ -258,15 +258,17 @@ model LoveNote {
 
 // ─── Chat Messages ────────────────────────────────────────────
 model ChatMessage {
-  id         String   @id @default(cuid())
-  senderId   String?  // Nullable for AI assistant
-  sender     User?    @relation("SentMessages", fields: [senderId], references: [id])
-  receiverId String?  // Nullable for AI chat
-  receiver   User?    @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  role       String   // "user" | "assistant" | "partner"
+  id         String    @id @default(cuid())
+  senderId   String?   // Nullable for AI assistant
+  sender     User?     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId String?   // Nullable for AI chat
+  receiver   User?     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  role       String    // "user" | "assistant" | "partner"
   content    String
-  createdAt  DateTime @default(now())
+  readAt     DateTime? // When the receiver viewed this message (null = unread)
+  createdAt  DateTime  @default(now())
 
+  @@index([receiverId, readAt])
   @@map("chat_messages")
 }
 

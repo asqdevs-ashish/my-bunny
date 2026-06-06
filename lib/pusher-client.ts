@@ -38,6 +38,7 @@ export interface PartnerChatMessage {
   content: string;
   role: "partner" | "user" | "assistant";
   createdAt: string;
+  readAt?: string | null;
 }
 
 interface UsePartnerChatOptions {
@@ -108,6 +109,16 @@ export function usePartnerChat({ partnerId, myId }: UsePartnerChatOptions) {
           return [...prev, data.message];
         });
       });
+
+      channel.bind("messages-read", (data: { readAt: string; messageIds: string[] }) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            data.messageIds.includes(m.id)
+              ? { ...m, readAt: data.readAt }
+              : m
+          )
+        );
+      });
     }
 
     return () => {
@@ -157,10 +168,16 @@ export function usePartnerChat({ partnerId, myId }: UsePartnerChatOptions) {
 
         const saved = await res.json();
 
-        // Replace optimistic message with real one
-        setMessages((prev) =>
-          prev.map((m) => (m.id === optimisticId ? saved.message : m))
-        );
+        // Replace optimistic message with real one.
+        // Edge case: if Pusher already delivered the real message,
+        // just remove the optimistic one to avoid duplicate keys.
+        setMessages((prev) => {
+          const realAlreadyExists = prev.some((m) => m.id === saved.message.id);
+          if (realAlreadyExists) {
+            return prev.filter((m) => m.id !== optimisticId);
+          }
+          return prev.map((m) => (m.id === optimisticId ? saved.message : m));
+        });
 
         return true;
       } catch (err) {

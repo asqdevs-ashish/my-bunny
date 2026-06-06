@@ -54,11 +54,24 @@ export async function GET(req: Request) {
     const isUser1 = coupleEntry.user1Id === currentUser.id;
     const myAgreed = isUser1 ? coupleEntry.user1Agreed : coupleEntry.user2Agreed;
     const partnerAgreed = isUser1 ? coupleEntry.user2Agreed : coupleEntry.user1Agreed;
+    const bothAgreed = coupleEntry.user1Agreed && coupleEntry.user2Agreed;
     const myNameSuggestion = isUser1 ? coupleEntry.nameSuggestedByUser1 : coupleEntry.nameSuggestedByUser2;
     const partnerNameSuggestion = isUser1 ? coupleEntry.nameSuggestedByUser2 : coupleEntry.nameSuggestedByUser1;
 
+    // Status: "joined_pending" = entry exists but partner hasn't agreed yet
+    //          "naming"        = both agreed, pick a team name
+    //          "joined"        = team name locked
+    let status: string;
+    if (coupleEntry.teamName) {
+      status = "joined";
+    } else if (bothAgreed) {
+      status = "naming";
+    } else {
+      status = "joined_pending";
+    }
+
     return Response.json({
-      status: coupleEntry.teamName ? "joined" : "naming",
+      status,
       teamName: coupleEntry.teamName,
       myAgreed,
       partnerAgreed,
