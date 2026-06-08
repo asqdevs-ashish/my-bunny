@@ -131,7 +131,7 @@ function EmptyChat({ partnerName }: { partnerName: string }) {
         <Heart className="h-7 w-7 text-rose-400" fill="currentColor" />
         <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-green-400 border-2 border-card" />
       </div>
-      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-600">
+      <h3 className="text-lg font-semibold text-foreground">
         Chat with {partnerName} 💕
       </h3>
       <p className="mt-1.5 max-w-xs text-center text-sm text-muted-foreground leading-relaxed">
