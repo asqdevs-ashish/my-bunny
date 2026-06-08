@@ -12,6 +12,7 @@ import { NotificationSettingsWrapper } from "@/components/notification-settings-
 import { PartnerOverview } from "@/components/partner-overview";
 import { MemoryScrapbook } from "@/components/memory-scrapbook";
 import { SecretNoteExchange } from "@/components/secret-note-exchange";
+import { QuickActions } from "@/components/quick-actions";
 import {
   Card,
   CardContent,
@@ -24,6 +25,7 @@ import {
   Sun,
   BookHeart,
   Music,
+  Zap,
 } from "lucide-react";
 
 // ─── Section Divider ────────────────────────────────────────
@@ -108,18 +110,18 @@ export default async function DashboardPage() {
         <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-5">
           {/* ── SECTION 1: Daily Check-ins ── */}
           <SectionDivider label="Daily Check-ins" icon={Sun} delay="0.05s" />
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-4">
+          <div id="mood" className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-4">
             <div className="animate-slide-up lg:col-span-2 xl:col-span-3" style={{ animationDelay: "0.1s" } as React.CSSProperties}>
               <MoodSelector />
             </div>
-            <div className="animate-slide-up" style={{ animationDelay: "0.13s" } as React.CSSProperties}>
+            <div id="water" className="animate-slide-up" style={{ animationDelay: "0.13s" } as React.CSSProperties}>
               <WaterTracker />
             </div>
           </div>
 
           {/* ── SECTION 2: Nutrition & Growth ── */}
           <SectionDivider label="Nutrition &amp; Growth" icon={UtensilsCrossed} delay="0.16s" />
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-4">
+          <div id="meals" className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-4">
             <div className="animate-slide-up" style={{ animationDelay: "0.19s" } as React.CSSProperties}>
               <MealLogger />
             </div>
@@ -138,20 +140,22 @@ export default async function DashboardPage() {
 
           {/* ── SECTION 4: Romance ── */}
           <SectionDivider label="Romance" icon={BookHeart} delay="0.31s" />
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-5">
+          <div id="secret" className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-5">
             <div className="animate-slide-up lg:col-span-1 xl:col-span-2" style={{ animationDelay: "0.34s" } as React.CSSProperties}>
               <SecretNoteExchange />
             </div>
-            <div className="animate-slide-up lg:col-span-2 xl:col-span-3" style={{ animationDelay: "0.37s" } as React.CSSProperties}>
+            <div id="memories" className="animate-slide-up lg:col-span-2 xl:col-span-3" style={{ animationDelay: "0.37s" } as React.CSSProperties}>
               <MemoryScrapbook />
             </div>
           </div>
 
           {/* ── SECTION 5: Inspiration ── */}
           <SectionDivider label="Inspiration" icon={Music} delay="0.4s" />
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-3">
+          <div id="love-notes" className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-3">
             <div className="animate-slide-up" style={{ animationDelay: "0.43s" } as React.CSSProperties}>
-              <LoveNotes />
+              <div id="love-note-card">
+                <LoveNotes />
+              </div>
             </div>
             <div className="animate-slide-up" style={{ animationDelay: "0.46s" } as React.CSSProperties}>
               <MoodRecipes />
@@ -161,10 +165,16 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* ── SECTION 6: Settings ── */}
-          <SectionDivider label="Preferences" icon={Smile} delay="0.52s" />
+          {/* ── SECTION 6: Quick Actions ── */}
+          <SectionDivider label="Quick Actions" icon={Zap} delay="0.52s" />
+          <div className="animate-slide-up" style={{ animationDelay: "0.55s" } as React.CSSProperties}>
+            <QuickActions />
+          </div>
+
+          {/* ── SECTION 7: Settings ── */}
+          <SectionDivider label="Preferences" icon={Smile} delay="0.58s" />
           <div className="grid gap-4 sm:gap-6 grid-cols-1">
-            <div className="animate-slide-up" style={{ animationDelay: "0.55s" } as React.CSSProperties}>
+            <div className="animate-slide-up" style={{ animationDelay: "0.61s" } as React.CSSProperties}>
               <NotificationSettingsWrapper />
             </div>
           </div>
