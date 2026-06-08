@@ -9,7 +9,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { NotificationSettings } from "@/components/notification-settings";
+import { NotificationSettingsWrapper } from "@/components/notification-settings-wrapper";
 import {
   User,
   Heart,
@@ -446,7 +446,7 @@ export function ProfileClient() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <NotificationSettings />
+            <NotificationSettingsWrapper />
           </CardContent>
         </Card>
 

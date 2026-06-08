@@ -269,7 +269,6 @@ function StageProgress({ stage, health }: { stage: PlantStage; health: number })
 
 // ─── Main Component ──────────────────────────────────────────
 export function LovePlantAchievements() {
-  const { data: session } = useSession();
   const [plantData, setPlantData] = useState<{
     stage: PlantStage;
     health: number;
