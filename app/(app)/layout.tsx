@@ -1,5 +1,4 @@
 import { Nav } from "@/components/nav";
-import { FloatingChatButton } from "@/components/floating-chat-button";
 
 export default function AppLayout({
   children,
@@ -10,7 +9,6 @@ export default function AppLayout({
     <>
       <Nav />
       {children}
-      <FloatingChatButton />
     </>
   );
 }
