@@ -566,14 +566,24 @@ export function Nav() {
                       </Link>
 
                       {partnerId && (
-                        <Link
-                          href="/partner-chat"
-                          onClick={closeMenu}
-                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
-                        >
-                          <MessageCircle className="h-4 w-4 text-rose-500" />
-                          <span>Partner Chat</span>
-                        </Link>
+                        <>
+                          <Link
+                            href={`/partner/${partnerId}`}
+                            onClick={closeMenu}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                          >
+                            <Heart className="h-4 w-4 text-rose-500" />
+                            <span>Partner Overview</span>
+                          </Link>
+                          <Link
+                            href="/partner-chat"
+                            onClick={closeMenu}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                          >
+                            <MessageCircle className="h-4 w-4 text-rose-500" />
+                            <span>Partner Chat</span>
+                          </Link>
+                        </>
                       )}
                     </div>
 
@@ -732,6 +742,17 @@ export function Nav() {
                           icon: MapPin,
                           color: "text-blue-500",
                           isActive: locationActive,
+                        },
+                      ]
+                    : []),
+                  ...(partnerId
+                    ? [
+                        {
+                          href: `/partner/${partnerId}`,
+                          label: "Partner Overview",
+                          icon: Heart,
+                          color: "text-rose-500",
+                          isActive: pathname.startsWith(`/partner/${partnerId}`),
                         },
                       ]
                     : []),

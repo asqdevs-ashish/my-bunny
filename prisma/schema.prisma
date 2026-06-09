@@ -19,6 +19,8 @@ model User {
   // Reverse lookup — users that have this user as partner
   partneredUsers  User[]    @relation("PartnerRelation")
   partnerSince    DateTime?
+  partnerSincePending DateTime?  // Proposed anniversary date (awaiting partner confirmation)
+  partnerSincePendingProposerId String? // User who proposed the date
   partnerCode     String?   @unique
   // Web Push subscription JSON
   pushSubscription Json?
@@ -118,6 +120,7 @@ model CompetitionCouple {
   competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   coupleKey     String   @unique // same as love_plants.coupleKey
   teamName      String?  // Final agreed team name
+  teamImage     String?  // Team profile picture URL
   nameSuggestedByUser1 String?  // name suggested by user1
   nameSuggestedByUser2 String?  // name suggested by user2
   user1Id       String
@@ -126,6 +129,15 @@ model CompetitionCouple {
   user2         User     @relation("CompetitionUser2", fields: [user2Id], references: [id])
   user1Agreed   Boolean  @default(false)
   user2Agreed   Boolean  @default(false)
+  // Invite system: track who declined
+  user1Declined Boolean  @default(false)
+  user2Declined Boolean  @default(false)
+  // Pending edit request (mutual approval for changes)
+  pendingEditField      String?   // "teamName" | "teamImage"
+  pendingEditValue      String?   // Proposed new value
+  pendingEditRequestedById String? // User who requested the edit
+  pendingEditApprovedByUser1 Boolean @default(false)
+  pendingEditApprovedByUser2 Boolean @default(false)
   joinedAt      DateTime @default(now())
 
   @@index([competitionId])

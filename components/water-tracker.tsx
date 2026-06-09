@@ -217,7 +217,7 @@ export function WaterTracker() {
             )}
             <div className="rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800/50 p-3">
               <p className="text-sm font-bold bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400 bg-clip-text text-transparent">
-                🎉 You crushed it! Hydration queen! 👑
+                🎉 You crushed Hydration Tracker 👑
               </p>
             </div>
             <Button

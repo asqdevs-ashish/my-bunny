@@ -63,6 +63,8 @@ export default async function PartnerProfilePage({
       name: partner.name,
       email: partner.email,
       partnerSince: partner.partnerSince?.toISOString() || null,
+      partnerSincePending: partner.partnerSincePending?.toISOString() || null,
+      partnerSincePendingProposerId: partner.partnerSincePendingProposerId || null,
     },
     today: {
       meals: todayMeals.map((m) => ({

@@ -4,10 +4,13 @@ export interface LeaderboardEntry {
   rank: number;
   coupleKey: string;
   teamName: string | null;
+  teamImage: string | null;
   name1: string | null;
   name2: string | null;
   user1Name: string;
   user2Name: string;
+  user1Image: string | null;
+  user2Image: string | null;
   health: number;
   streak: number;
   stage: string;
@@ -73,8 +76,8 @@ export async function GET() {
             take: 365,
           },
           achievements: true,
-          user1: { select: { name: true, id: true } },
-          user2: { select: { name: true, id: true } },
+          user1: { select: { name: true, id: true, image: true } },
+          user2: { select: { name: true, id: true, image: true } },
         },
       });
 
@@ -95,10 +98,13 @@ export async function GET() {
         rank: 0, // Will be calculated after sorting
         coupleKey,
         teamName: couple.teamName,
+        teamImage: couple.teamImage,
         name1: couple.nameSuggestedByUser1,
         name2: couple.nameSuggestedByUser2,
         user1Name: lovePlant.user1.name,
         user2Name: lovePlant.user2.name,
+        user1Image: lovePlant.user1.image,
+        user2Image: lovePlant.user2.image,
         user1Id: lovePlant.user1.id,
         user2Id: lovePlant.user2.id,
         health,

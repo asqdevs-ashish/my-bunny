@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useLayoutEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import confetti from "canvas-confetti";
 import {
   Card,
@@ -10,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Heart,
   ArrowLeft,
@@ -22,6 +24,14 @@ import {
   IndianRupee,
   Sparkles,
   Calendar,
+  Edit3,
+  X,
+  Check,
+  Loader2,
+  ThumbsUp,
+  ThumbsDown,
+  AlertCircle,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,16 +43,12 @@ function formatCurrency(amount: number) {
   return amount.toString();
 }
 
-// ─── Anniversary Helper ──────────────────────────────────────
-const START_DATE = new Date("2025-07-28T00:00:00");
-
-function getTimeElapsed() {
+// ─── Anniversary Helpers ──────────────────────────────────────
+function getTimeElapsed(since: Date) {
   const now = new Date();
-  let diff = now.getTime() - START_DATE.getTime();
-
+  let diff = now.getTime() - since.getTime();
   if (diff < 0) return null;
 
-  // Exact breakdown
   const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
   diff -= years * (1000 * 60 * 60 * 24 * 365.25);
 
@@ -62,16 +68,222 @@ function getTimeElapsed() {
   return { years, months, weeks, days, hours, minutes };
 }
 
-function getNextAnniversary() {
+function getNextAnniversary(since: Date) {
   const now = new Date();
-  const next = new Date(now.getFullYear(), 6, 28); // July is month 6 (0-indexed)
+  const next = new Date(since);
+  next.setFullYear(now.getFullYear());
   if (now > next) next.setFullYear(now.getFullYear() + 1);
-  
   const diff = next.getTime() - now.getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  return { date: next, days };
+  return { date: next, days: Math.max(0, days) };
 }
 
+function formatDateNice(date: Date) {
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatTimeNice(date: Date) {
+  const h = date.getHours();
+  const m = date.getMinutes();
+  if (h === 0 && m === 0) return "";
+  return date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+}
+
+// ─── Date Edit Modal ──────────────────────────────────────────
+function AnniversaryEditModal({
+  currentDate,
+  partnerName,
+  onPropose,
+  onCancel,
+  loading,
+}: {
+  currentDate: Date | null;
+  partnerName: string;
+  onPropose: (date: Date) => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  const now = new Date();
+  const defaultDate = currentDate || now;
+  const [dateStr, setDateStr] = useState(
+    defaultDate.toISOString().split("T")[0]
+  );
+  const [hour, setHour] = useState(defaultDate.getHours().toString().padStart(2, "0"));
+  const [minute, setMinute] = useState(defaultDate.getMinutes().toString().padStart(2, "0"));
+
+  const handleSubmit = () => {
+    const d = new Date(dateStr + "T" + hour.padStart(2, "0") + ":" + minute.padStart(2, "0") + ":00");
+    if (isNaN(d.getTime())) return;
+    if (d > new Date()) {
+      onPropose(d); // Allow future dates too? Or validate?
+      return;
+    }
+    onPropose(d);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onCancel}>
+      <div
+        className="w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl p-6 space-y-4 animate-bounce-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30">
+              <Calendar className="h-4 w-4 text-rose-500" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-foreground">Set Anniversary Date 🎂</p>
+              <p className="text-[10px] text-muted-foreground">
+                {partnerName} will need to confirm this date
+              </p>
+            </div>
+          </div>
+          <button onClick={onCancel} className="h-8 w-8 rounded-full hover:bg-secondary/50 flex items-center justify-center">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Date picker */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground/80">Date</label>
+            <Input
+              type="date"
+              value={dateStr}
+              onChange={(e) => setDateStr(e.target.value)}
+              className="bg-secondary/30"
+            />
+          </div>
+
+          {/* Time (optional) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground/80">Hour (optional)</label>
+              <Input
+                type="number"
+                min="0"
+                max="23"
+                value={hour}
+                onChange={(e) => setHour(e.target.value.padStart(2, "0").slice(0, 2))}
+                placeholder="00"
+                className="bg-secondary/30"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground/80">Minute (optional)</label>
+              <Input
+                type="number"
+                min="0"
+                max="59"
+                value={minute}
+                onChange={(e) => setMinute(e.target.value.padStart(2, "0").slice(0, 2))}
+                placeholder="00"
+                className="bg-secondary/30"
+              />
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div className="rounded-xl bg-rose-50 dark:bg-rose-900/20 p-3 text-center">
+            <p className="text-[10px] text-muted-foreground">Preview</p>
+            <p className="text-sm font-bold text-rose-600 dark:text-rose-400">
+              {formatDateNice(new Date(dateStr + "T" + hour.padStart(2, "0") + ":" + minute.padStart(2, "0") + ":00"))}
+              {formatTimeNice(new Date(dateStr + "T" + hour.padStart(2, "0") + ":" + minute.padStart(2, "0") + ":00")) && (
+                <span className="font-normal ml-1">
+                  at {formatTimeNice(new Date(dateStr + "T" + hour.padStart(2, "0") + ":" + minute.padStart(2, "0") + ":00"))}
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onCancel} className="flex-1">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={loading || !dateStr}
+            className="flex-1 gap-2 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+            Send for Confirmation
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Pending Approval Banner ────────────────────────────────
+function AnniversaryApprovalBanner({
+  proposedDate,
+  proposedByName,
+  onApprove,
+  onReject,
+  loading,
+}: {
+  proposedDate: string;
+  proposedByName: string;
+  onApprove: () => void;
+  onReject: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="rounded-xl bg-gradient-to-r from-rose-50 to-amber-50 dark:from-rose-900/20 dark:to-amber-900/10 border border-rose-200 dark:border-rose-800/50 p-4 space-y-3 animate-bounce-in">
+      <div className="flex items-start gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30">
+          <AlertCircle className="h-4 w-4 text-rose-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-foreground">
+            {proposedByName} proposed an anniversary date 🎂
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Proposed date:{" "}
+            <span className="font-semibold text-foreground">
+              {formatDateNice(new Date(proposedDate))}
+              {formatTimeNice(new Date(proposedDate)) && (
+                <> at {formatTimeNice(new Date(proposedDate))}</>
+              )}
+            </span>
+          </p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Button
+          onClick={onReject}
+          disabled={loading}
+          variant="outline"
+          className="flex-1 gap-1.5 text-xs border-rose-200 dark:border-rose-800/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+        >
+          {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ThumbsDown className="h-3 w-3" />}
+          Reject
+        </Button>
+        <Button
+          onClick={onApprove}
+          disabled={loading}
+          variant="outline"
+          className="flex-1 gap-1.5 text-xs border-green-200 dark:border-green-800/50 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+        >
+          {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ThumbsUp className="h-3 w-3" />}
+          Looks Right! ✅
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Data Types ──────────────────────────────────────────────
 interface WeeklySummaryData {
   period: { from: string; to: string };
   meals: {
@@ -96,6 +308,8 @@ interface PartnerProfileData {
     name: string;
     email: string;
     partnerSince: string | null;
+    partnerSincePending: string | null;
+    partnerSincePendingProposerId: string | null;
   };
   today: {
     meals: Array<{
@@ -134,35 +348,114 @@ const MOOD_EMOJIS: Record<string, string> = {
   productive: "💪",
 };
 
+// ─── Main Component ────────────────────────────────────────
 export function PartnerProfileClient({ data }: { data: PartnerProfileData }) {
   const router = useRouter();
+  const { data: session } = useSession();
   const { partner, today } = data;
-  const [timeElapsed, setTimeElapsed] = useState(getTimeElapsed());
   const [mounted, setMounted] = useState(false);
-  const nextAnniv = getNextAnniversary();
 
-  // Initialize mounted on layout effect to prevent hydration mismatch
+  // Current user ID from session
+  const myUserId = session?.user?.id || null;
+
+  // Use partnerSince from data, fallback to current date
+  const sinceDate = partner.partnerSince ? new Date(partner.partnerSince) : new Date();
+  const [timeElapsed, setTimeElapsed] = useState(() => getTimeElapsed(sinceDate));
+  const nextAnniv = getNextAnniversary(sinceDate);
+
+  // Edit modal state
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [approveLoading, setApproveLoading] = useState(false);
+
+  // Pending proposal check
+  const pendingProposedDate = partner.partnerSincePending || null;
+  const pendingProposerId = partner.partnerSincePendingProposerId || null;
+
+  // Determine if I proposed the pending date
+  const iProposed = myUserId !== null && pendingProposerId === myUserId;
+  const partnerProposed = myUserId !== null && pendingProposerId !== null && pendingProposerId !== myUserId;
+
+  // Initialize mounted on layout effect
   useLayoutEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    // Confetti if it's the day! (July 28)
+    // Confetti on anniversary day
     const now = new Date();
-    if (now.getMonth() === 6 && now.getDate() === 28) {
+    if (
+      sinceDate &&
+      now.getDate() === sinceDate.getDate() &&
+      now.getMonth() === sinceDate.getMonth()
+    ) {
       confetti({
         particleCount: 150,
         spread: 70,
         origin: { y: 0.6 },
-        colors: ["#fb7185", "#fbbf24", "#f43f5e"]
+        colors: ["#fb7185", "#fbbf24", "#f43f5e"],
       });
     }
 
     const timer = setInterval(() => {
-      setTimeElapsed(getTimeElapsed());
-    }, 60000); // Update every minute
+      if (partner.partnerSince) {
+        setTimeElapsed(getTimeElapsed(new Date(partner.partnerSince)));
+      }
+    }, 60000);
     return () => clearInterval(timer);
-  }, []);
+  }, [partner.partnerSince, sinceDate]);
+
+  // ── Propose date ──
+  const handleProposeDate = useCallback(async (date: Date) => {
+    setEditLoading(true);
+    try {
+      const res = await fetch("/api/partner/partner-since", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: date.toISOString().split("T")[0],
+          hour: date.getHours(),
+          minute: date.getMinutes(),
+        }),
+      });
+      if (res.ok) {
+        setEditModalOpen(false);
+        router.refresh();
+      }
+    } catch {} finally {
+      setEditLoading(false);
+    }
+  }, [router]);
+
+  // ── Approve date ──
+  const handleApprove = useCallback(async () => {
+    setApproveLoading(true);
+    try {
+      await fetch("/api/partner/partner-since-respond", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approved: true }),
+      });
+      router.refresh();
+    } catch {} finally {
+      setApproveLoading(false);
+    }
+  }, [router]);
+
+  // ── Reject date ──
+  const handleReject = useCallback(async () => {
+    setApproveLoading(true);
+    try {
+      await fetch("/api/partner/partner-since-respond", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approved: false }),
+      });
+      router.refresh();
+    } catch {} finally {
+      setApproveLoading(false);
+    }
+  }, [router]);
 
   return (
     <div className="space-y-6 animate-slide-up">
@@ -177,6 +470,26 @@ export function PartnerProfileClient({ data }: { data: PartnerProfileData }) {
         Back to Dashboard
       </Button>
 
+      {/* Pending Approval Banner */}
+      {partnerProposed && pendingProposedDate && (
+        <AnniversaryApprovalBanner
+          proposedDate={pendingProposedDate}
+          proposedByName={partner.name}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          loading={approveLoading}
+        />
+      )}
+
+      {iProposed && pendingProposedDate && (
+        <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 p-3 text-center">
+          <Loader2 className="h-4 w-4 animate-spin inline mr-1.5 text-amber-500" />
+          <p className="text-xs text-amber-700 dark:text-amber-400 inline">
+            Waiting for {partner.name} to confirm the anniversary date...
+          </p>
+        </div>
+      )}
+
       {/* Partner Header */}
       <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-rose-50 via-amber-50 to-orange-50 dark:from-[#1a1a2e] dark:via-[#1a1a2e] dark:to-[#121212] shadow-xl shadow-rose-200/30 dark:shadow-amber-900/10">
         <div className="absolute inset-0 bg-gradient-to-r from-rose-200/10 via-transparent to-amber-200/10 dark:from-amber-500/5 dark:via-transparent dark:to-rose-500/5 animate-gradient" />
@@ -186,26 +499,49 @@ export function PartnerProfileClient({ data }: { data: PartnerProfileData }) {
               <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-400 to-amber-400 dark:from-amber-500 dark:to-yellow-500 shadow-lg shadow-rose-300/30 dark:shadow-amber-800/30">
                 <Heart className="h-8 w-8 sm:h-10 sm:w-10 text-white" fill="white" />
               </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                  {partner.name} 💕
-                </h1>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                    {partner.name} 💕
+                  </h1>
+                  {/* Edit button */}
+              <button
+                onClick={() => setEditModalOpen(true)}
+                className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-rose-100 dark:hover:bg-rose-900/30 text-muted-foreground hover:text-rose-500 transition-all"
+                title="Set anniversary date"
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+              </button>
+                </div>
                 <p className="flex items-center gap-1.5 mt-1 text-sm font-medium text-rose-500">
                   <Calendar className="h-3.5 w-3.5" />
-                  Together since 28 July 2025
+                  {partner.partnerSince ? (
+                    <>
+                      Together since {formatDateNice(sinceDate)}
+                      {formatTimeNice(sinceDate) && (
+                        <span className="text-[10px] text-rose-400 ml-1">
+                          at {formatTimeNice(sinceDate)}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    "Anniversary date not set yet 💔"
+                  )}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Today is {new Date().toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
-                <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full w-fit animate-pulse">
-                  <Sparkles className="h-3 w-3" />
-                  Next Anniversary in {nextAnniv.days} days!
-                </div>
+                {partner.partnerSince && (
+                  <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full w-fit animate-pulse">
+                    <Sparkles className="h-3 w-3" />
+                    Next Anniversary in {nextAnniv.days} days!
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Time Counter Grid */}
-            {mounted && timeElapsed && (
+            {mounted && timeElapsed && partner.partnerSince && (
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 bg-white/40 dark:bg-black/20 backdrop-blur-sm p-3 rounded-2xl border border-rose-100 dark:border-rose-900/20 shadow-sm">
                 {[
                   { label: "Years", value: timeElapsed.years },
@@ -511,6 +847,17 @@ export function PartnerProfileClient({ data }: { data: PartnerProfileData }) {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Edit Modal */}
+      {editModalOpen && (
+        <AnniversaryEditModal
+          currentDate={partner.partnerSince ? sinceDate : null}
+          partnerName={partner.name}
+          onPropose={handleProposeDate}
+          onCancel={() => setEditModalOpen(false)}
+          loading={editLoading}
+        />
       )}
     </div>
   );
