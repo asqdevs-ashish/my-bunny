@@ -12,7 +12,6 @@ import { NotificationSettingsWrapper } from "@/components/notification-settings-
 import { PartnerOverview } from "@/components/partner-overview";
 import { MemoryScrapbook } from "@/components/memory-scrapbook";
 import { SecretNoteExchange } from "@/components/secret-note-exchange";
-import { QuickActions } from "@/components/quick-actions";
 import {
   Card,
   CardContent,
@@ -25,7 +24,7 @@ import {
   Sun,
   BookHeart,
   Music,
-  Zap,
+
 } from "lucide-react";
 
 // ─── Section Divider ────────────────────────────────────────
@@ -165,13 +164,7 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* ── SECTION 6: Quick Actions ── */}
-          <SectionDivider label="Quick Actions" icon={Zap} delay="0.52s" />
-          <div className="animate-slide-up" style={{ animationDelay: "0.55s" } as React.CSSProperties}>
-            <QuickActions />
-          </div>
-
-          {/* ── SECTION 7: Settings ── */}
+          {/* ── SECTION 6: Settings ── */}
           <SectionDivider label="Preferences" icon={Smile} delay="0.58s" />
           <div className="grid gap-4 sm:gap-6 grid-cols-1">
             <div className="animate-slide-up" style={{ animationDelay: "0.61s" } as React.CSSProperties}>
